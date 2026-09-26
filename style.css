@@ -1,1 +1,195 @@
+@import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Do+Hyeon&family=Dongle:wght@400;700&family=Gaegu:wght@400;700&family=Gowun+Batang:wght@400;700&family=Jua&family=Nanum+Pen+Script&family=Noto+Sans+KR:wght@400;700;900&family=Playfair+Display:ital,wght@0,700;1,700&family=Pretendard:wght@400;600;700;900&display=swap');
 
+:root {
+  --theme-color: #f43f5e;
+  --theme-primary: #f43f5e;
+  --theme-primary-hover: #e11d48;
+  --theme-color-hover: #e11d48;
+  --theme-color-light: #fff1f2;
+  --app-vh: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: 'Pretendard', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  touch-action: manipulation;
+  background-color: #f8fafc;
+  color: #1e293b;
+  height: var(--app-vh);
+  width: 100vw;
+}
+
+/* 카메라 좌우 반전 거울 모드 */
+.mirror {
+  transform: scaleX(-1) !important;
+}
+
+/* 반투명 카운트다운 네온 텍스트 */
+.stroke-countdown-translucent {
+  color: rgba(255, 255, 255, 0.25);
+  -webkit-text-stroke: 3px rgba(255, 255, 255, 0.85);
+  text-shadow: 0 0 20px rgba(244, 63, 94, 0.6), 0 4px 16px rgba(0, 0, 0, 0.7);
+  letter-spacing: -2px;
+}
+
+/* 실감형 플래시 효과 */
+@keyframes flashAnimation {
+  0% { opacity: 0; }
+  30% { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+
+.flash-effect {
+  animation: flashAnimation 0.38s ease-out forwards;
+}
+
+/* 스크롤바 숨김 유틸리티 */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 동적 테마 색상 클래스 */
+.bg-theme { background-color: var(--theme-color) !important; }
+.bg-theme-hover:hover { background-color: var(--theme-color-hover) !important; }
+.bg-theme-light { background-color: var(--theme-color-light) !important; }
+.text-theme { color: var(--theme-color) !important; }
+.border-theme { border-color: var(--theme-color) !important; }
+
+/* 2단계 플로팅 돋보기 */
+#floatingLoupe {
+  pointer-events: none;
+  transform: translate(-50%, -125%);
+  box-shadow: 0 16px 32px -4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  transition: opacity 0.15s ease, transform 0.05s ease-out;
+}
+
+/* 슬롯 드래그 하이라이트 */
+.slot-dragover {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.4) !important;
+  transform: scale(1.04);
+  transition: all 0.15s ease;
+}
+
+/* 🌟 착용 소품 칩 스타일 */
+.prop-chip {
+  background-color: #ffffff;
+  border: 1px solid #fecdd3;
+  color: #1e293b;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.prop-chip:hover {
+  background-color: #fff1f2;
+  border-color: var(--theme-color);
+}
+
+.prop-chip:active {
+  transform: scale(0.95);
+}
+
+/* 15열 이모티콘 그리드 */
+.emoji-grid-15 {
+  display: grid !important;
+  grid-template-columns: repeat(15, minmax(0, 1fr)) !important;
+  gap: 2px !important;
+}
+
+.emoji-grid-15 button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  padding: 3px 0;
+  border-radius: 6px;
+  transition: transform 0.1s, background-color 0.15s;
+}
+
+.emoji-grid-15 button:active {
+  transform: scale(1.2);
+  background-color: #e2e8f0;
+}
+
+/* 캔버스 스케일 패닝 래퍼 */
+#canvasScaleWrapper {
+  transform-origin: center center;
+  transition: transform 0.04s ease-out;
+  cursor: grab;
+}
+
+#canvasScaleWrapper:active {
+  cursor: grabbing;
+}
+
+/* 챗봇 말풍선 */
+.chat-bubble-user {
+  background-color: var(--theme-color);
+  color: white;
+  border-radius: 16px 16px 4px 16px;
+}
+
+.chat-bubble-ai {
+  background-color: #f1f5f9;
+  color: #1e293b;
+  border-radius: 16px 16px 16px 4px;
+}
+
+/* 숨김 레이어 클릭 가로채기 차단 강제 규칙 */
+.hidden, [hidden] {
+  display: none !important;
+}
+
+/* ========================================================
+   🌟 14, 15. 스마트폰 가로모드 5:5 스플릿 & 아이패드 중앙 정렬
+======================================================== */
+@media (min-width: 640px) and (orientation: landscape) {
+  .responsive-editor-layout {
+    flex-direction: row !important;
+  }
+  .editor-canvas-pane {
+    width: 50% !important;
+    height: 100% !important;
+  }
+  .editor-split-resizer {
+    width: 14px !important;
+    height: 100% !important;
+    cursor: col-resize !important;
+  }
+  .resizer-bar-indicator {
+    width: 4px !important;
+    height: 32px !important;
+  }
+  .editor-control-pane {
+    width: 50% !important;
+    height: 100% !important;
+  }
+  .responsive-canvas-height {
+    max-height: 84vh !important;
+  }
+}
+
+/* 아이패드 세로모드 중앙정렬 */
+@media (min-width: 768px) and (orientation: portrait) {
+  #screenEdit, #screenPick, #screenHome {
+    justify-content: center;
+    align-items: center;
+  }
+}
