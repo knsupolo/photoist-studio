@@ -1659,853 +1659,466 @@ function cancelGalleryCollect() {
 }
 
 // ========================================================
-// 11. 🌟 테마 컨트롤러 & B-3 측면 각인 툴바
+// 11. 테마 컨트롤러 & 프레임 스타일 제어 (Theme & Frame Styles)
 // ========================================================
-function switchThemeCategory(category) {
-  if (category !== 'basic' && (!appState.isRegisteredUser || !appState.currentUser)) {
-    alert("심플 및 프리미엄 테마는 [정회원 전용] 기능입니다.\n간편 회원가입 또는 로그인 후 이용해 주세요! 🔒");
-    openAuthModal('login');
-    return;
+function setFrameThemeCategory(categoryKey, btn) {
+  appState.themeCategory = categoryKey;
+  document.querySelectorAll('.theme-tab-btn').forEach(b => {
+    b.className = "theme-tab-btn flex-1 py-1.5 text-slate-400 font-bold text-xs rounded-lg transition";
+  });
+  if (btn) btn.className = "theme-tab-btn flex-1 py-1.5 bg-[#222222] text-white font-black text-xs rounded-lg shadow-sm transition";
+
+  const basicPanel = document.getElementById('themeGroupBasic');
+  const simplePanel = document.getElementById('themeGroupSimple');
+  const premiumPanel = document.getElementById('themeGroupPremium');
+
+  if (basicPanel) basicPanel.classList.toggle('hidden', categoryKey !== 'basic');
+  if (simplePanel) simplePanel.classList.toggle('hidden', categoryKey !== 'simple');
+  if (premiumPanel) premiumPanel.classList.toggle('hidden', categoryKey !== 'premium');
+}
+
+function setFrameStyle(styleKey, btn) {
+  saveStateForUndo();
+  appState.frameStyle = styleKey;
+
+  document.querySelectorAll('.style-btn').forEach(b => {
+    b.className = "style-btn bg-[#1a1a1a] text-slate-300 font-bold py-2 px-3 rounded-xl border border-white/10 text-xs hover:border-white/30 transition";
+  });
+  if (btn) {
+    btn.className = "style-btn bg-white text-black font-black py-2 px-3 rounded-xl border border-white shadow-md text-xs transition";
   }
 
-  appState.themeCategory = category;
-  
-  ['Basic', 'Simple', 'Premium'].forEach(cat => {
-    const tab = document.getElementById('tabTheme' + cat);
-    const panel = document.getElementById('themeSubPanel' + cat);
-    const isTarget = (cat.toLowerCase() === category);
-    if (tab) {
-      if (isTarget) {
-        tab.className = "px-2 py-0.5 rounded-md bg-white text-theme shadow-2xs font-black";
-      } else {
-        tab.className = "px-2 py-0.5 rounded-md text-slate-500 font-bold";
-      }
-    }
-    if (panel) {
-      if (isTarget) panel.classList.remove('hidden');
-      else panel.classList.add('hidden');
-    }
-  });
+  const label = document.getElementById('labelCustomText');
+  const sigInput = document.getElementById('frameSignatureInput');
+  const colorPickerContainer = document.getElementById('frameColorPickerWrapper');
 
-  if (category === 'basic') {
-    setBasicTextPosition('middle', null);
-  } else if (category === 'simple') {
-    setSimpleOffsetLayout('minimal_line', null);
-  } else if (category === 'premium') {
-    setPremiumSubTheme('photoist', null);
+  // 기본 테마 계열
+  if (styleKey === 'basic_top') {
+    if (label) label.textContent = "상단 문구 설정";
+    if (sigInput) sigInput.value = "photoist Studio";
+    if (colorPickerContainer) colorPickerContainer.classList.remove('hidden');
+  } else if (styleKey === 'basic_middle') {
+    if (label) label.textContent = "중간 문구 설정";
+    if (sigInput) sigInput.value = "추억의 네컷";
+    if (colorPickerContainer) colorPickerContainer.classList.remove('hidden');
+  } else if (styleKey === 'basic_bottom') {
+    if (label) label.textContent = "하단 문구 설정";
+    if (sigInput) sigInput.value = "MEMORIES OF TODAY";
+    if (colorPickerContainer) colorPickerContainer.classList.remove('hidden');
+  } else if (styleKey === 'basic_stepped') {
+    if (label) label.textContent = "계단형 Safe Zone 문구";
+    if (sigInput) sigInput.value = "STEP BY STEP";
+    if (colorPickerContainer) colorPickerContainer.classList.remove('hidden');
+  } else if (styleKey === 'basic_clean') {
+    if (label) label.textContent = "클린 무각인 (여백 유지)";
+    if (sigInput) sigInput.value = "";
+    if (colorPickerContainer) colorPickerContainer.classList.remove('hidden');
   }
+  // 심플 테마 계열
+  else if (styleKey === 'simple_minimal_line') {
+    if (label) label.textContent = "미니멀 라인 문구";
+    if (sigInput) sigInput.value = "M I N I M A L";
+    if (colorPickerContainer) colorPickerContainer.classList.remove('hidden');
+  } else if (styleKey === 'simple_polaroid_wide') {
+    if (label) label.textContent = "폴라로이드 와이드 서명";
+    if (sigInput) sigInput.value = "Our Precious Time";
+    if (colorPickerContainer) colorPickerContainer.classList.remove('hidden');
+  } else if (styleKey === 'simple_inset_magazine') {
+    if (label) label.textContent = "인셋 매거진 타이틀";
+    if (sigInput) sigInput.value = "PHOTOIST MAGAZINE ISSUE #01";
+    if (colorPickerContainer) colorPickerContainer.classList.remove('hidden');
+  }
+  // 프리미엄 스페셜 테마 계열
+  else if (styleKey === 'photoist') {
+    if (label) label.textContent = "포토이스트 시그니처";
+    if (sigInput) sigInput.value = "photoist";
+    appState.frameColor = '#0a0a0a';
+  } else if (styleKey === 'birthday') {
+    if (label) label.textContent = "생일 축하 문구";
+    if (sigInput) sigInput.value = "Happy Birthday to You 🎉";
+  } else if (styleKey === 'baseball') {
+    if (label) label.textContent = "베이스볼 타이틀";
+    if (sigInput) sigInput.value = "Play Ball! Home Run ⚾";
+  }
+
+  renderStrip();
 }
 
-// 1. 기본 테마: 상단 / 중간 / 하단 / 상·하단 / 계단형 (여백 240~300px 대폭 확장)
-function setBasicTextPosition(pos, btn) {
-  appState.frameStyle = pos; 
-  document.querySelectorAll('.basic-pos-btn').forEach(b => {
-    b.className = "basic-pos-btn p-1.5 bg-white border border-slate-200 rounded-lg text-[9px] font-bold";
+function toggleSideEngraving(enabled) {
+  saveStateForUndo();
+  appState.sideEngravingEnabled = enabled;
+  const panel = document.getElementById('sideEngravingConfigPanel');
+  if (panel) panel.classList.toggle('hidden', !enabled);
+  renderStrip();
+}
+
+function setSideEngravingText(text) {
+  appState.sideEngravingText = text;
+  renderStrip();
+}
+
+function applyDefaultSideEngraving() {
+  saveStateForUndo();
+  appState.sideEngravingEnabled = true;
+  appState.sideEngravingText = "PHOTOIST STUDIO • KEEP YOUR MOMENT";
+  const inp = document.getElementById('sideEngravingInput');
+  if (inp) inp.value = appState.sideEngravingText;
+  const toggle = document.getElementById('sideEngravingToggle');
+  if (toggle) toggle.checked = true;
+  const panel = document.getElementById('sideEngravingConfigPanel');
+  if (panel) panel.classList.remove('hidden');
+  renderStrip();
+}
+
+function removeSideEngraving() {
+  saveStateForUndo();
+  appState.sideEngravingEnabled = false;
+  appState.sideEngravingText = "";
+  const inp = document.getElementById('sideEngravingInput');
+  if (inp) inp.value = "";
+  const toggle = document.getElementById('sideEngravingToggle');
+  if (toggle) toggle.checked = false;
+  const panel = document.getElementById('sideEngravingConfigPanel');
+  if (panel) panel.classList.add('hidden');
+  renderStrip();
+}
+
+function onThicknessChange(val) {
+  appState.frameThickness = parseInt(val, 10);
+  const valLabel = document.getElementById('valThickness');
+  if (valLabel) valLabel.textContent = `${appState.frameThickness}px`;
+  renderStrip();
+}
+
+function changeFrameColor(color, btn) {
+  saveStateForUndo();
+  appState.frameColor = color;
+  document.querySelectorAll('.color-btn').forEach(b => {
+    b.classList.remove('ring-2', 'ring-white', 'scale-110');
   });
-  if (btn) btn.className = "basic-pos-btn p-1.5 bg-theme text-white border border-theme rounded-lg font-black shadow-2xs text-[9px]";
+  if (btn) btn.classList.add('ring-2', 'ring-white', 'scale-110');
+
+  const lightColors = ['#FFFFFF', '#F8FAFC', '#E2E8F0', '#FECDD3', '#BAE6FD', '#FAF7EE', '#FDFBF7'];
+  if (lightColors.includes(color.toUpperCase())) {
+    appState.typography.fontColor = '#111111';
+  } else {
+    appState.typography.fontColor = '#FFFFFF';
+  }
+  const picker = document.getElementById('fontColorPicker');
+  if (picker) picker.value = appState.typography.fontColor;
   renderStrip();
 }
 
-// 2. 심플 테마: 미니멀 라인, 폴라로이드 와이드, 인셋 매거진
-function setSimpleOffsetLayout(key, btn) {
-  if (!appState.isRegisteredUser) { openAuthModal('login'); return; }
-  appState.frameStyle = key; 
-  document.querySelectorAll('.simple-theme-btn').forEach(b => {
-    b.className = "simple-theme-btn p-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-bold truncate";
+function setFontFamily(fontName, btn) {
+  saveStateForUndo();
+  appState.typography.fontFamily = fontName;
+  document.querySelectorAll('.font-btn').forEach(b => {
+    b.classList.remove('border-rose-500', 'bg-white/20', 'text-white');
+    b.classList.add('border-white/10', 'text-slate-400');
   });
-  if (btn) btn.className = "simple-theme-btn p-1.5 bg-theme text-white border border-theme rounded-lg font-black shadow-2xs text-[10px] truncate";
+  if (btn) {
+    btn.classList.add('border-rose-500', 'bg-white/20', 'text-white');
+    btn.classList.remove('border-white/10', 'text-slate-400');
+  }
   renderStrip();
 }
 
-// 3. 프리미엄 테마: 생일, 야구, 포토이스트(photoist)
-function setPremiumSubTheme(key, btn) {
-  if (!appState.isRegisteredUser) { openAuthModal('login'); return; }
-  appState.frameStyle = key; 
-  document.querySelectorAll('.premium-theme-btn').forEach(b => {
-    b.className = "premium-theme-btn p-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-bold truncate";
-  });
-  if (btn) btn.className = "premium-theme-btn p-1.5 bg-theme text-white border border-theme rounded-lg font-black shadow-2xs text-[10px] truncate";
+function toggleFontBold() {
+  saveStateForUndo();
+  appState.typography.isBold = !appState.typography.isBold;
+  const btn = document.getElementById('btnFontBold');
+  if (btn) {
+    btn.className = appState.typography.isBold
+      ? "px-2.5 py-1 rounded-lg text-xs font-black bg-white text-black transition"
+      : "px-2.5 py-1 rounded-lg text-xs font-normal bg-white/10 text-white border border-white/20 transition";
+  }
   renderStrip();
 }
 
-// 🌟 B-3 측면 각인 툴바 기능 (입력, 기본 문구 적용, 삭제 원클릭)
-function onCustomEngraveChange(val) {
-  appState.customEngraveText = val;
+function onFontColorChange(color) {
+  appState.typography.fontColor = color;
   renderStrip();
 }
 
-function applyDefaultSideEngrave() {
-  appState.customEngraveText = "Photography      PhotoBooth      PhotoIst      Studio";
-  const input = document.getElementById('customEngraveInput');
-  if (input) input.value = appState.customEngraveText;
+function onFontSizeChange(size) {
+  appState.typography.fontSize = parseInt(size, 10);
+  const lbl = document.getElementById('valFontSize');
+  if (lbl) lbl.textContent = `${size}px`;
   renderStrip();
 }
 
-function clearSideEngrave() {
-  appState.customEngraveText = " ";
-  const input = document.getElementById('customEngraveInput');
-  if (input) input.value = "";
-  renderStrip();
-}
-
-// 🌟 착용 소품 스탬프 추가 (투명도 조절 지원)
-function addPropSticker(emoji, size = 100, opacity = 1.0) {
-  saveStateForUndo(); 
-  const canvas = document.getElementById('photoCanvas');
-  const newSticker = { 
-    id: Date.now(), 
-    type: 'emoji', 
-    text: emoji, 
-    x: canvas ? canvas.width / 2 : 600, 
-    y: canvas ? canvas.height / 2 : 1800, 
-    size: size, 
-    rotation: 0,
-    opacity: opacity
-  };
-  appState.stickers.push(newSticker); 
-  appState.selectedStickerIdx = appState.stickers.length - 1;
-  showStickerControls(newSticker); 
+function toggleShowDate(checked) {
+  saveStateForUndo();
+  appState.showDate = checked;
   renderStrip();
 }
 
 // ========================================================
-// 12. 🌟 메인 캔버스 렌더러 (4·5·6컷 가변 레이아웃 & 하단 각인 삭제)
+// 12. 감성 필터 및 화질 보정 엔진 (Filters & Color Adjustments)
 // ========================================================
-function renderStrip(isFinalExport = false) {
-  const canvas = document.getElementById('photoCanvas'); 
-  if (!canvas) return; 
-  const ctx = canvas.getContext('2d');
-  
-  const cuts = appState.cutMode || 4;
+function handleFilterClick(filterKey, btn) {
+  const isAlreadyActive = (appState.activeFilter === filterKey);
+  if (!isAlreadyActive) {
+    saveStateForUndo();
+    appState.activeFilter = filterKey;
+    const p = FILTER_PRESETS[filterKey] || FILTER_PRESETS.normal;
+    appState.filters = { bright: p.bright, contrast: p.contrast, saturate: p.saturate };
 
-  if (!appState.selectedImages || appState.selectedImages.length < cuts) {
-    if (appState.shotImages && appState.shotImages.length >= cuts) {
-      appState.selectedImages = appState.shotImages.slice(0, cuts);
-    } else if (appState.shotImages && appState.shotImages.length > 0) {
-      appState.selectedImages = Array(cuts).fill(null).map((_, i) => appState.shotImages[i % appState.shotImages.length]);
-    } else {
-      return;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.className = "filter-btn bg-[#181818] text-slate-300 font-bold py-1.5 rounded-lg border border-white/10 text-xs transition";
+    });
+    if (btn) {
+      btn.className = "filter-btn bg-white text-black font-black py-1.5 rounded-lg border border-white text-xs shadow-md transition";
     }
-  }
 
-  const layout = appState.layout || 'strip'; 
-  const pad = appState.frameThickness || 60; 
-  const gap = Math.round(pad * 0.45);
-  const fStyle = appState.frameStyle;
-  const isDark = (appState.frameColor === '#000000' || appState.frameColor === '#111827' || appState.frameColor === '#18181B' || appState.frameColor === '#111111');
-
-  // 컷수 및 레이아웃별 캔버스 규격 동적 결정
-  if (cuts === 4) {
-    if (layout === 'strip') { canvas.width = 1200; canvas.height = 3600; }
-    else { canvas.width = 1800; canvas.height = 2700; }
-  } else if (cuts === 5) {
-    if (layout === 'strip') { canvas.width = 1200; canvas.height = 4200; }
-    else { canvas.width = 1800; canvas.height = 2700; }
-  } else if (cuts === 6) {
-    if (layout === 'strip') { canvas.width = 1200; canvas.height = 4800; }
-    else { canvas.width = 1800; canvas.height = 2700; }
-  }
-
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-
-  // [레이어 1: 프레임 배경색]
-  if (fStyle === 'birthday') ctx.fillStyle = '#FAF7EE';
-  else ctx.fillStyle = appState.frameColor;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // [레이어 2: 컷수별 사진 슬롯 렌더링]
-  if (cuts === 4) {
-    if (layout === 'strip') renderStrip4Slots(ctx, canvas, pad, gap, fStyle);
-    else if (layout === 'twin') renderTwin4Slots(ctx, canvas, pad, gap, fStyle);
-    else renderGrid4Slots(ctx, canvas, pad, gap, fStyle);
-  } else if (cuts === 5) {
-    if (layout === 'strip') renderStrip5Slots(ctx, canvas, pad, gap, fStyle);
-    else renderMagazine5Slots(ctx, canvas, pad, gap, fStyle);
-  } else if (cuts === 6) {
-    if (layout === 'strip') renderStrip6Slots(ctx, canvas, pad, gap, fStyle);
-    else renderGrid6Slots(ctx, canvas, pad, gap, fStyle);
-  }
-
-  // [레이어 3: 테마 오버레이 & 🌟 모든 프레임 측면 세로 각인]
-  renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout);
-
-  // [레이어 4: 스티커 & 날짜 오브젝트]
-  renderStickersAndMirrors(ctx, canvas, layout);
-}
-
-// 4컷 스트립 레이아웃 (문구 여백 240~300px 대폭 확장)
-function renderStrip4Slots(ctx, canvas, pad, gap, fStyle) {
-  let topH = pad; 
-  let bottomH = pad; 
-  let bannerH = 0;
-
-  if (fStyle === 'top') { topH = 280; bottomH = pad; }
-  else if (fStyle === 'bottom') { topH = pad; bottomH = 300; }
-  else if (fStyle === 'middle') { bannerH = 260; }
-  else if (fStyle === 'dual') { topH = 220; bottomH = 240; }
-  else if (fStyle === 'stair') { topH = 160; bottomH = 180; }
-  else if (fStyle === 'photoist') { topH = 180; bottomH = pad; }
-
-  const imgW = canvas.width - (pad * 2);
-  const imgH = (canvas.height - topH - bottomH - bannerH - (gap * 3)) / 4;
-
-  if (fStyle === 'middle') {
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[0], pad, pad, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[1], pad, pad + imgH + gap, imgW, imgH);
-    const lowerY = pad + (imgH * 2) + (gap * 2) + bannerH + gap;
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[2], pad, lowerY, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[3], pad, lowerY + imgH + gap, imgW, imgH);
-  } else if (fStyle === 'stair') {
-    for (let i = 0; i < 4; i++) {
-      const offsetX = (i % 2 === 0) ? -35 : 35;
-      const slotW = imgW - 70;
-      const x = (canvas.width - slotW) / 2 + offsetX;
-      const y = topH + (i * (imgH + gap));
-      drawFilteredSlotPhoto(ctx, appState.selectedImages[i], x, y, slotW, imgH);
-    }
+    const badge = document.getElementById('filterStateBadge');
+    if (badge) badge.textContent = p.name;
+    const sb = document.getElementById('sliderBright');
+    const sc = document.getElementById('sliderContrast');
+    const ss = document.getElementById('sliderSaturate');
+    if (sb) sb.value = p.bright;
+    if (sc) sc.value = p.contrast;
+    if (ss) ss.value = p.saturate;
+    renderStrip();
   } else {
-    for (let i = 0; i < 4; i++) {
-      drawFilteredSlotPhoto(ctx, appState.selectedImages[i], pad, topH + (i * (imgH + gap)), imgW, imgH);
-    }
+    const panel = document.getElementById('filterFineTunePanel');
+    if (panel) panel.classList.toggle('hidden');
   }
 }
 
-// 4컷 2×2 그리드 레이아웃
-function renderGrid4Slots(ctx, canvas, pad, gap, fStyle) {
-  let topH = pad; 
-  let bottomH = pad; 
-  let bannerH = 0;
-
-  if (fStyle === 'top') { topH = 260; bottomH = pad; }
-  else if (fStyle === 'bottom') { topH = pad; bottomH = 260; }
-  else if (fStyle === 'middle') { bannerH = 200; }
-  else if (fStyle === 'dual') { topH = 200; bottomH = 220; }
-  else if (fStyle === 'polaroid_wide') { topH = pad * 0.5; bottomH = 340; }
-  else if (fStyle === 'minimal_line') { gap = 2; }
-  else if (fStyle === 'photoist') { topH = 180; bottomH = pad; }
-
-  const imgW = (canvas.width - (pad * 2) - gap) / 2;
-  const imgH = (canvas.height - topH - bottomH - bannerH - gap) / 2;
-
-  if (fStyle === 'middle') {
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[0], pad, pad, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[1], pad + imgW + gap, pad, imgW, imgH);
-    const lowerY = pad + imgH + bannerH;
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[2], pad, lowerY, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[3], pad + imgW + gap, lowerY, imgW, imgH);
-  } else {
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[0], pad, topH, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[1], pad + imgW + gap, topH, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[2], pad, topH + imgH + gap, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[3], pad + imgW + gap, topH + imgH + gap, imgW, imgH);
-  }
-}
-
-// 4컷 Twin 2줄 대칭 레이아웃
-function renderTwin4Slots(ctx, canvas, pad, gap, fStyle) {
-  const stripW = (canvas.width / 2) - 30;
-  const padX = pad * 0.65;
-  const imgW = stripW - (padX * 2);
-  const topH = 160; const bottomH = 200;
-  const imgH = (canvas.height - topH - bottomH - (gap * 3)) / 4;
-
-  [15, canvas.width / 2 + 15].forEach(baseX => {
-    for (let i = 0; i < 4; i++) {
-      drawFilteredSlotPhoto(ctx, appState.selectedImages[i], baseX + padX, topH + (i * (imgH + gap)), imgW, imgH);
-    }
-  });
-
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-  ctx.lineWidth = 3;
-  ctx.setLineDash([12, 12]);
-  ctx.beginPath();
-  ctx.moveTo(canvas.width / 2, 30);
-  ctx.lineTo(canvas.width / 2, canvas.height - 30);
-  ctx.stroke();
-  ctx.font = '28px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('✂️', canvas.width / 2, 90);
-  ctx.fillText('✂️', canvas.width / 2, canvas.height / 2);
-  ctx.fillText('✂️', canvas.width / 2, canvas.height - 90);
-  ctx.restore();
-}
-
-// 🌟 5컷 화보형 레이아웃 (상단 2컷, 가운데 와이드 대형 1컷, 하단 2컷)
-function renderMagazine5Slots(ctx, canvas, pad, gap, fStyle) {
-  const topH = 180;
-  const bottomH = 200;
-  const availH = canvas.height - topH - bottomH - (gap * 2);
-  const smallH = availH * 0.28;
-  const bigH = availH * 0.44;
-  const halfW = (canvas.width - (pad * 2) - gap) / 2;
-  const fullW = canvas.width - (pad * 2);
-
-  // 상단 2컷
-  drawFilteredSlotPhoto(ctx, appState.selectedImages[0], pad, topH, halfW, smallH);
-  drawFilteredSlotPhoto(ctx, appState.selectedImages[1], pad + halfW + gap, topH, halfW, smallH);
-
-  // 가운데 메인 와이드 대형 1컷
-  const midY = topH + smallH + gap;
-  drawFilteredSlotPhoto(ctx, appState.selectedImages[2], pad, midY, fullW, bigH);
-
-  // 하단 2컷
-  const botY = midY + bigH + gap;
-  drawFilteredSlotPhoto(ctx, appState.selectedImages[3], pad, botY, halfW, smallH);
-  drawFilteredSlotPhoto(ctx, appState.selectedImages[4], pad + halfW + gap, botY, halfW, smallH);
-}
-
-// 5컷 1×5 롱 스트립
-function renderStrip5Slots(ctx, canvas, pad, gap, fStyle) {
-  const topH = 180; const bottomH = 220;
-  const imgW = canvas.width - (pad * 2);
-  const imgH = (canvas.height - topH - bottomH - (gap * 4)) / 5;
-  for (let i = 0; i < 5; i++) {
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[i], pad, topH + (i * (imgH + gap)), imgW, imgH);
-  }
-}
-
-// 🌟 6컷 2×3 그리드 레이아웃
-function renderGrid6Slots(ctx, canvas, pad, gap, fStyle) {
-  const topH = 180; const bottomH = 200;
-  const imgW = (canvas.width - (pad * 2) - gap) / 2;
-  const imgH = (canvas.height - topH - bottomH - (gap * 2)) / 3;
-
-  for (let row = 0; row < 3; row++) {
-    const y = topH + (row * (imgH + gap));
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[row * 2], pad, y, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[row * 2 + 1], pad + imgW + gap, y, imgW, imgH);
-  }
-}
-
-// 6컷 1×6 슈퍼 롱 스트립
-function renderStrip6Slots(ctx, canvas, pad, gap, fStyle) {
-  const topH = 180; const bottomH = 220;
-  const imgW = canvas.width - (pad * 2);
-  const imgH = (canvas.height - topH - bottomH - (gap * 5)) / 6;
-  for (let i = 0; i < 6; i++) {
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[i], pad, topH + (i * (imgH + gap)), imgW, imgH);
-  }
-}
-
-// 🌟 모든 프레임 측면 세로 각인 & 포토이스트 & 하단 각인 영구 삭제
-function renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout) {
-  ctx.save();
-
-  // 🌟 [요구사항 6, 7] 테두리 여백(pad: 30~80)에 정비례하는 선명한 폰트 (32px ~ 64px)
-  const adaptiveFontSize = Math.max(32, Math.min(64, Math.round(pad * 0.65)));
-  
-  // 🌟 [요구사항 5] 측면 각인 문구 (사용자 지정 문구 우선)
-  const sideEngraveText = (appState.customEngraveText !== undefined && appState.customEngraveText !== "")
-    ? appState.customEngraveText
-    : "Photography      PhotoBooth      PhotoIst      Studio";
-
-  const textColor = isDark ? '#FFFFFF' : '#0F172A';
-
-  // 1) 포토이스트(photoist) 로고 및 세로 기둥 렌더링
-  if (fStyle === 'photoist') {
-    ctx.fillStyle = textColor;
-    ctx.font = "700 58px 'Playfair Display', serif";
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText("photoist", pad, 95);
-
-    // 좌측 기둥 ▲ 재생 심볼
-    const cuts = appState.cutMode || 4;
-    const topH = 180; const bottomH = pad;
-    const stepH = (canvas.height - topH - bottomH) / cuts;
-
-    for (let i = 0; i < cuts; i++) {
-      const centerY = topH + (i * stepH) + (stepH / 2);
-      ctx.fillStyle = textColor;
-      ctx.font = `bold ${Math.round(adaptiveFontSize * 1.1)}px monospace`; 
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText("▲", pad / 2, centerY);
-    }
-  }
-  else if (fStyle === 'birthday') {
-    ctx.fillStyle = '#E11D48';
-    ctx.font = "900 68px 'Playfair Display', serif";
-    ctx.textAlign = 'left';
-    ctx.fillText("Happy Birthday ♡", pad, 95);
-
-    ctx.fillStyle = '#9F1239';
-    ctx.font = "bold 22px 'Pretendard', sans-serif";
-    ctx.fillText("오늘은 너라는 기적이 태어난 날! 🎂", pad, 142);
-
-    ctx.font = "36px sans-serif";
-    ctx.fillText("🎀", canvas.width - pad - 60, 105);
-  }
-  else if (fStyle === 'baseball') {
-    ctx.fillStyle = '#1E3A8A';
-    ctx.font = "900 64px 'Black Han Sans', sans-serif";
-    ctx.textAlign = 'left';
-    ctx.fillText("⚾ PLAY BASEBALL!", pad, 95);
-
-    ctx.fillStyle = '#DC2626';
-    ctx.font = "bold 22px 'Pretendard', sans-serif";
-    ctx.fillText("오늘도, 우리는 야구를 한다! ★", pad, 142);
-
-    ctx.font = "38px sans-serif";
-    ctx.fillText("⚾", canvas.width - pad - 60, 100);
-  }
-
-  // 🌟 [요구사항 5] 모든 프레임 우측 측면 세로 각인 (문구가 공백이 아닐 때만 렌더링)
-  if (sideEngraveText.trim().length > 0 && fStyle !== 'birthday') {
-    ctx.save();
-    ctx.translate(canvas.width - (pad / 2), canvas.height / 2);
-    ctx.rotate(Math.PI / 2);
-    ctx.fillStyle = isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.75)';
-    ctx.font = `bold ${adaptiveFontSize}px monospace`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.letterSpacing = "3px";
-    ctx.fillText(sideEngraveText, 0, 0);
-    ctx.restore();
-  }
-
-  // 🌟 [요구사항 5 & 8] 이상하던 프레임 하단 각인 텍스트는 완전 삭제되어 100% 클린 Safe Zone으로 유지됩니다.
-
-  ctx.restore();
-}
-
-function drawFilteredSlotPhoto(ctx, img, targetX, targetY, targetW, targetH) {
-  ctx.save();
-  ctx.fillStyle = '#E2E8F0';
-  ctx.fillRect(targetX, targetY, targetW, targetH);
-
-  if (!img || !img.src) {
-    ctx.fillStyle = '#94A3B8';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('사진 불러오는 중...', targetX + targetW / 2, targetY + targetH / 2);
-    ctx.restore();
-    return;
-  }
-
-  ctx.beginPath(); 
-  ctx.rect(targetX, targetY, targetW, targetH); 
-  ctx.clip();
-
-  const srcRatio = (img.width || 1920) / (img.height || 1080); 
-  const targetRatio = targetW / targetH; 
-  let renderW, renderH;
-
-  if (srcRatio > targetRatio) { renderH = targetH; renderW = targetH * srcRatio; } 
-  else { renderW = targetW; renderH = targetW / srcRatio; }
-
-  const drawX = targetX + (targetW - renderW) / 2; 
-  const drawY = targetY + (targetH - renderH) / 2;
-  const isNormal = appState.activeFilter === 'normal' && appState.filters.bright === 100 && appState.filters.contrast === 100 && appState.filters.saturate === 100;
-
-  if (isNormal) { 
-    ctx.drawImage(img, drawX, drawY, renderW, renderH); 
-  } else {
-    try {
-      const off = document.createElement('canvas'); 
-      const cw = Math.max(1, Math.round(renderW)); 
-      const ch = Math.max(1, Math.round(renderH)); 
-      off.width = cw; off.height = ch;
-      const offCtx = off.getContext('2d'); 
-      offCtx.imageSmoothingEnabled = true;
-      offCtx.imageSmoothingQuality = 'high';
-      offCtx.drawImage(img, 0, 0, cw, ch); 
-      const imgData = offCtx.getImageData(0, 0, cw, ch); 
-      applyPixelFilterMath(imgData, appState.activeFilter, appState.filters); 
-      offCtx.putImageData(imgData, 0, 0); 
-      ctx.drawImage(off, drawX, drawY, renderW, renderH); 
-    } catch (err) { 
-      ctx.drawImage(img, drawX, drawY, renderW, renderH); 
-    }
-  }
-  ctx.restore();
+function onFineTuneSliderChange() {
+  const sb = document.getElementById('sliderBright');
+  const sc = document.getElementById('sliderContrast');
+  const ss = document.getElementById('sliderSaturate');
+  if (sb) appState.filters.bright = parseInt(sb.value, 10);
+  if (sc) appState.filters.contrast = parseInt(sc.value, 10);
+  if (ss) appState.filters.saturate = parseInt(ss.value, 10);
+  renderStrip();
 }
 
 function applyPixelFilterMath(imageData, filterKey, customAdjust) {
-  const d = imageData.data; 
-  const len = d.length; 
-  const bMul = customAdjust.bright / 100; 
-  const cFactor = ((customAdjust.contrast - 100) * 2.55) / 255 + 1; 
-  const sMul = customAdjust.saturate / 100;
+  const d = imageData.data;
+  const len = d.length;
+  const bMul = (customAdjust.bright || 100) / 100;
+  const cFactor = (((customAdjust.contrast || 100) - 100) * 2.55) / 255 + 1;
+  const sMul = (customAdjust.saturate || 100) / 100;
 
   for (let i = 0; i < len; i += 4) {
-    let r = d[i], g = d[i+1], b = d[i+2];
+    let r = d[i], g = d[i + 1], b = d[i + 2];
 
-    if (filterKey === 'harublue') { r = r * 0.94; g = g * 1.05 + 6; b = b * 1.20 + 16; }
-    else if (filterKey === 'deepmono') { const gray = 0.299 * r + 0.587 * g + 0.114 * b; r = g = b = gray; }
-    else if (filterKey === 'y2kcyber') { r = r * 0.90; g = g * 1.08 + 10; b = b * 1.02 + 5; }
-    else if (filterKey === 'peachglow') { r = r * 1.15 + 14; g = g * 1.04 + 6; b = b * 0.92; }
-    else if (filterKey === 'naturalgloss') { r = r * 1.12 + 10; g = g * 1.10 + 8; b = b * 1.12 + 10; }
-    else if (filterKey === 'bright') { r = r*1.1+10; g = g*1.08+8; b = b*1.05+6; }
-    else if (filterKey === 'radiant') { r = r*1.12+15; g = g*1.1+12; b = b*1.15+15; }
-    else if (filterKey === 'warm') { r = r*1.12+12; g = g*1.05+6; b = b*0.92; }
-    else if (filterKey === 'cool') { r = r*0.92; g = g*1.02+4; b = b*1.15+12; }
-    else if (filterKey === 'mood') { r = r*1.06+8; g = g*0.98; b = b*0.92+5; }
-    else if (filterKey === 'retro') { r = r*1.08+15; g = g*0.95+8; b = b*0.82+12; }
-    else if (filterKey === 'mono') { const gray = 0.299*r + 0.587*g + 0.114*b; r = g = b = gray; }
-    else if (filterKey === 'sunset') { r = r*1.18+15; g = g*1.02+5; b = b*0.85; }
-    else if (filterKey === 'pink') { r = r*1.15+12; g = g*0.95; b = b*1.1+10; }
+    if (filterKey === 'bright') { r = r * 1.1 + 10; g = g * 1.08 + 8; b = b * 1.05 + 6; }
+    else if (filterKey === 'radiant') { r = r * 1.12 + 15; g = g * 1.1 + 12; b = b * 1.15 + 15; }
+    else if (filterKey === 'warm') { r = r * 1.12 + 12; g = g * 1.05 + 6; b = b * 0.92; }
+    else if (filterKey === 'cool') { r = r * 0.92; g = g * 1.02 + 4; b = b * 1.15 + 12; }
+    else if (filterKey === 'mood') { r = r * 1.06 + 8; g = g * 0.98; b = b * 0.92 + 5; }
+    else if (filterKey === 'retro') { r = r * 1.08 + 15; g = g * 0.95 + 8; b = b * 0.82 + 12; }
+    else if (filterKey === 'mono') { const gray = 0.299 * r + 0.587 * g + 0.114 * b; r = g = b = gray; }
+    else if (filterKey === 'sunset') { r = r * 1.18 + 15; g = g * 1.02 + 5; b = b * 0.85; }
+    else if (filterKey === 'cyan') { r = r * 0.88; g = g * 1.08 + 8; b = b * 1.2 + 15; }
+    else if (filterKey === 'green') { r = r * 0.95; g = g * 1.12 + 10; b = b * 0.95; }
+    else if (filterKey === 'pink') { r = r * 1.15 + 12; g = g * 0.95; b = b * 1.1 + 10; }
 
-    r *= bMul; g *= bMul; b *= bMul; 
-    r = ((r / 255 - 0.5) * cFactor + 0.5) * 255; 
-    g = ((g / 255 - 0.5) * cFactor + 0.5) * 255; 
+    r *= bMul; g *= bMul; b *= bMul;
+    r = ((r / 255 - 0.5) * cFactor + 0.5) * 255;
+    g = ((g / 255 - 0.5) * cFactor + 0.5) * 255;
     b = ((b / 255 - 0.5) * cFactor + 0.5) * 255;
 
-    if (sMul !== 1 && filterKey !== 'mono' && filterKey !== 'deepmono') { 
-      const lum = 0.299*r + 0.587*g + 0.114*b; 
-      r = lum + (r - lum)*sMul; g = lum + (g - lum)*sMul; b = lum + (b - lum)*sMul; 
+    if (sMul !== 1 && filterKey !== 'mono') {
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      r = lum + (r - lum) * sMul;
+      g = lum + (g - lum) * sMul;
+      b = lum + (b - lum) * sMul;
     }
-    d[i] = Math.min(255, Math.max(0, r)); 
-    d[i+1] = Math.min(255, Math.max(0, g)); 
-    d[i+2] = Math.min(255, Math.max(0, b));
+
+    d[i] = Math.min(255, Math.max(0, r));
+    d[i + 1] = Math.min(255, Math.max(0, g));
+    d[i + 2] = Math.min(255, Math.max(0, b));
   }
-}
-
-function renderStickersAndMirrors(ctx, canvas, layout) {
-  const isTwin = (layout === 'twin');
-  const mirrorOffsetX = canvas.width / 2;
-
-  appState.stickers.forEach((st) => {
-    drawSingleSticker(ctx, st);
-    if (isTwin) {
-      const mirrored = { ...st, x: st.x + mirrorOffsetX };
-      drawSingleSticker(ctx, mirrored);
-    }
-  });
-}
-
-function drawSingleSticker(ctx, st) {
-  ctx.save();
-  ctx.translate(st.x, st.y);
-  ctx.rotate(((st.rotation || 0) * Math.PI) / 180);
-  if (st.opacity !== undefined) {
-    ctx.globalAlpha = st.opacity;
-  }
-
-  if (st.type === 'text') {
-    const fontName = st.fontFamily || 'Pretendard'; 
-    ctx.font = `900 ${st.size}px '${fontName}', sans-serif`; 
-    ctx.fillStyle = st.color || '#FFFFFF'; 
-    ctx.shadowColor = 'rgba(0,0,0,0.85)'; 
-    ctx.shadowBlur = 10; 
-    ctx.textAlign = 'center'; 
-    ctx.textBaseline = 'middle'; 
-    ctx.fillText(st.text, 0, 0);
-  } else {
-    ctx.font = `${st.size}px sans-serif`; 
-    ctx.textAlign = 'center'; 
-    ctx.textBaseline = 'middle'; 
-    ctx.fillText(st.text, 0, 0);
-  }
-  ctx.restore();
 }
 
 // ========================================================
-// 13. 날짜 오브젝트 시스템
+// 13. 착용형 소품 스탬프 & 마그네틱 자석 스냅 가이드
 // ========================================================
-function toggleDateObject(checked) {
+const WEARABLE_PROPS = {
+  rabbit_ears: { name: '토끼귀', emoji: '🐰', defaultSize: 130, offsetY: -70 },
+  headband: { name: '머리띠', emoji: '🎀', defaultSize: 120, offsetY: -60 },
+  cat_whiskers: { name: '고양이수염', emoji: '🐱', defaultSize: 110, offsetY: 0 },
+  hipster_sunglasses: { name: '힙스터선글라스', emoji: '🕶️', defaultSize: 125, offsetY: -10 },
+  geek_chic_glasses: { name: '긱시크안경', emoji: '👓', defaultSize: 115, offsetY: -10 },
+  crown: { name: '왕관', emoji: '👑', defaultSize: 120, offsetY: -75 },
+  heart_overlay: { name: '반투명하트', emoji: '💖', defaultSize: 140, offsetY: 0, opacity: 0.75 }
+};
+
+let magneticSnapLines = { x: null, y: null };
+
+function addWearableProp(propKey) {
+  const prop = WEARABLE_PROPS[propKey];
+  if (!prop) return;
   saveStateForUndo();
-  appState.showDate = checked;
-  initOrUpdateDateSticker(checked);
+
+  const canvas = document.getElementById('photoCanvas');
+  const targetX = canvas ? canvas.width / 2 : 600;
+  const targetY = canvas ? canvas.height / 2 + prop.offsetY : 1200;
+
+  const newSticker = {
+    id: Date.now(),
+    type: 'prop',
+    propKey: propKey,
+    text: prop.emoji,
+    x: targetX,
+    y: targetY,
+    size: prop.defaultSize,
+    rotation: 0,
+    opacity: prop.opacity || 1.0
+  };
+
+  appState.stickers.push(newSticker);
+  appState.selectedStickerIdx = appState.stickers.length - 1;
+  showStickerControls(newSticker);
   renderStrip();
 }
 
-function initOrUpdateDateSticker(show) {
+function checkMagneticSnap(stX, stY, snapThreshold = 18) {
+  magneticSnapLines = { x: null, y: null };
+  let finalX = stX;
+  let finalY = stY;
+
+  if (!appState.slotRects || appState.slotRects.length === 0) {
+    return { x: finalX, y: finalY };
+  }
+
+  for (let rect of appState.slotRects) {
+    const slotCenterX = rect.x + rect.w / 2;
+    const slotFaceY = rect.y + rect.h * 0.35;
+    const slotCenterY = rect.y + rect.h / 2;
+
+    if (Math.abs(stX - slotCenterX) <= snapThreshold) {
+      finalX = slotCenterX;
+      magneticSnapLines.x = slotCenterX;
+    }
+    if (Math.abs(stY - slotFaceY) <= snapThreshold) {
+      finalY = slotFaceY;
+      magneticSnapLines.y = slotFaceY;
+    } else if (Math.abs(stY - slotCenterY) <= snapThreshold) {
+      finalY = slotCenterY;
+      magneticSnapLines.y = slotCenterY;
+    }
+  }
+
   const canvas = document.getElementById('photoCanvas');
-  const existingIdx = appState.stickers.findIndex(s => s.isDate === true);
-
-  if (show) {
-    if (existingIdx === -1) {
-      const newDateSticker = {
-        id: 'date_obj_' + Date.now(),
-        type: 'text',
-        isDate: true,
-        text: appState.typography.date,
-        x: canvas && canvas.width ? canvas.width / 2 : 600,
-        y: canvas && canvas.height ? (appState.selectedFormat === 'strip' ? canvas.height - 120 : canvas.height - 100) : 3480,
-        size: 38,
-        rotation: 0,
-        color: (appState.frameColor === '#FFFFFF' || appState.frameColor === '#E2E8F0') ? '#1E293B' : '#FFFFFF',
-        fontFamily: 'Pretendard'
-      };
-      appState.stickers.push(newDateSticker);
-    }
-  } else if (existingIdx !== -1) {
-    appState.stickers.splice(existingIdx, 1);
-    if (appState.selectedStickerIdx === existingIdx) {
-      appState.selectedStickerIdx = -1;
-      const bar = document.getElementById('stickerControlBar');
-      if (bar) bar.classList.add('hidden');
-    }
+  if (canvas && Math.abs(stX - canvas.width / 2) <= snapThreshold) {
+    finalX = canvas.width / 2;
+    magneticSnapLines.x = canvas.width / 2;
   }
+
+  return { x: finalX, y: finalY };
 }
 
-// ========================================================
-// 14. 2단계 돋보기 & 🌟 B-2 마그네틱 자석 스냅 가이드 인터랙션
-// ========================================================
-function updateFloatingLoupe(touchX, touchY, canvasCoordX, canvasCoordY, isDragging) {
-  const loupe = document.getElementById('floatingLoupe');
-  const lCanvas = document.getElementById('loupeCanvas');
-  const mainCanvas = document.getElementById('photoCanvas');
-  if (!loupe || !lCanvas || !mainCanvas) return;
-
-  loupe.style.left = `${touchX}px`;
-  loupe.style.top = `${touchY}px`;
-  loupe.classList.remove('hidden');
-
-  const loupeW = 140; const loupeH = 140;
-  lCanvas.width = loupeW;
-  lCanvas.height = loupeH;
-  const lCtx = lCanvas.getContext('2d');
-  lCtx.imageSmoothingEnabled = true;
-  lCtx.imageSmoothingQuality = 'high';
-  lCtx.clearRect(0, 0, loupeW, loupeH);
-
-  if (!isDragging) {
-    const cropSize = 80;
-    lCtx.drawImage(
-      mainCanvas,
-      canvasCoordX - cropSize / 2,
-      canvasCoordY - cropSize / 2,
-      cropSize,
-      cropSize,
-      0,
-      0,
-      loupeW,
-      loupeH
-    );
-    lCtx.strokeStyle = 'rgba(244, 63, 94, 0.85)';
-    lCtx.lineWidth = 1.5;
-    lCtx.beginPath();
-    lCtx.moveTo(70, 50); lCtx.lineTo(70, 90);
-    lCtx.moveTo(50, 70); lCtx.lineTo(90, 70);
-    lCtx.stroke();
-  } 
-  else if (appState.selectedStickerIdx >= 0) {
-    const st = appState.stickers[appState.selectedStickerIdx];
-    lCtx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    lCtx.fillRect(0, 0, loupeW, loupeH);
-
-    const safeZoneSize = 100;
-    let approxWidth = st.size;
-    if (st.type === 'text') {
-      approxWidth = Math.max(st.size, (st.text ? st.text.length : 1) * (st.size * 0.65));
-    }
-    const maxBound = Math.max(approxWidth, st.size);
-    const autoScale = safeZoneSize / Math.max(safeZoneSize, maxBound);
-
-    lCtx.save();
-    lCtx.translate(70, 70);
-    lCtx.rotate(((st.rotation || 0) * Math.PI) / 180);
-    lCtx.scale(autoScale, autoScale);
-
-    if (st.type === 'text') {
-      lCtx.font = `900 ${st.size}px '${st.fontFamily || 'Pretendard'}', sans-serif`;
-      lCtx.fillStyle = st.color || '#1E293B';
-      lCtx.textAlign = 'center';
-      lCtx.textBaseline = 'middle';
-      lCtx.fillText(st.text, 0, 0);
-    } else {
-      lCtx.font = `${st.size}px sans-serif`;
-      lCtx.textAlign = 'center';
-      lCtx.textBaseline = 'middle';
-      lCtx.fillText(st.text, 0, 0);
-    }
-    lCtx.restore();
-  }
+function addDirectTextSticker() {
+  const input = document.getElementById('directTextInput');
+  if (!input) return;
+  const val = input.value.trim();
+  if (!val) { alert("추가할 텍스트를 입력해주세요!"); return; }
+  addTextSticker(val);
+  input.value = '';
 }
 
-function hideFloatingLoupe() {
-  const loupe = document.getElementById('floatingLoupe');
-  if (loupe) loupe.classList.add('hidden');
-}
-
-function initCanvasInteractions() {
+function addTextSticker(text) {
+  saveStateForUndo();
+  pushRecentSticker('text', text);
   const canvas = document.getElementById('photoCanvas');
-  const viewport = document.getElementById('canvasViewport');
-  const guideX = document.getElementById('magneticGuideX');
-  const guideY = document.getElementById('magneticGuideY');
-  if (!canvas || !viewport) return;
-
-  let initialStickerDist = 0;
-  let initialStickerAngle = 0;
-  let baseStickerSize = 65;
-  let baseStickerRotation = 0;
-  let dragStartCoord = { x: 0, y: 0 };
-
-  function getCoords(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    return {
-      clientX, clientY,
-      x: (clientX - rect.left) * (canvas.width / rect.width),
-      y: (clientY - rect.top) * (canvas.height / rect.height)
-    };
-  }
-
-  function handleStart(e) {
-    if (e.touches && e.touches.length === 2 && appState.selectedStickerIdx !== -1) {
-      e.preventDefault();
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      initialStickerDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-      initialStickerAngle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * 180 / Math.PI;
-      const st = appState.stickers[appState.selectedStickerIdx];
-      baseStickerSize = st.size;
-      baseStickerRotation = st.rotation || 0;
-      return;
-    }
-
-    const touch = e.touches ? e.touches[0] : e;
-    const c = getCoords(touch.clientX, touch.clientY);
-    let hitSticker = false;
-
-    for (let i = appState.stickers.length - 1; i >= 0; i--) {
-      const st = appState.stickers[i];
-      const dist = Math.hypot(c.x - st.x, c.y - st.y);
-      if (dist <= Math.max(90, st.size * 1.2)) {
-        appState.selectedStickerIdx = i;
-        appState.dragTarget = i;
-        appState.dragStartPos = { x: c.x - st.x, y: c.y - st.y };
-        dragStartCoord = { x: touch.clientX, y: touch.clientY };
-        appState.isDraggingSticker = false;
-
-        showStickerControls(st);
-        renderStrip();
-        hitSticker = true;
-        updateFloatingLoupe(touch.clientX, touch.clientY, c.x, c.y, false);
-        break;
-      }
-    }
-
-    if (!hitSticker) {
-      isPanning = true;
-      panStartX = touch.clientX - canvasPanX;
-      panStartY = touch.clientY - canvasPanY;
-      appState.selectedStickerIdx = -1;
-      appState.dragTarget = null;
-      hideFloatingLoupe();
-      if (guideX) guideX.classList.add('hidden');
-      if (guideY) guideY.classList.add('hidden');
-      const bar = document.getElementById('stickerControlBar'); 
-      if (bar) bar.classList.add('hidden');
-      renderStrip();
-    }
-  }
-
-  function handleMove(e) {
-    if (e.touches && e.touches.length === 2 && appState.selectedStickerIdx !== -1 && initialStickerDist > 0) {
-      e.preventDefault();
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      const curDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-      const curAngle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * 180 / Math.PI;
-
-      const scaleFactor = curDist / initialStickerDist;
-      const angleDiff = curAngle - initialStickerAngle;
-      const st = appState.stickers[appState.selectedStickerIdx];
-      st.size = Math.max(25, Math.min(320, Math.round(baseStickerSize * scaleFactor)));
-      
-      let newRot = Math.round((baseStickerRotation + angleDiff) % 180);
-      st.rotation = newRot;
-      
-      showStickerControls(st);
-      renderStrip();
-      return;
-    }
-
-    const touch = e.touches ? e.touches[0] : e;
-    const c = getCoords(touch.clientX, touch.clientY);
-
-    if (appState.dragTarget !== null) {
-      if (e.cancelable) e.preventDefault();
-      const st = appState.stickers[appState.dragTarget];
-      
-      let targetX = c.x - appState.dragStartPos.x;
-      let targetY = c.y - appState.dragStartPos.y;
-
-      // 🌟 B-2 마그네틱 자석 스냅 가이드 (중앙 정렬 자석 효과)
-      const snapThreshold = 35;
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-
-      if (Math.abs(targetX - centerX) < snapThreshold) {
-        targetX = centerX;
-        if (guideY) {
-          guideY.classList.remove('hidden');
-          guideY.style.left = '50%';
-        }
-        triggerHaptic('light');
-      } else {
-        if (guideY) guideY.classList.add('hidden');
-      }
-
-      if (Math.abs(targetY - centerY) < snapThreshold) {
-        targetY = centerY;
-        if (guideX) {
-          guideX.classList.remove('hidden');
-          guideX.style.top = '50%';
-        }
-        triggerHaptic('light');
-      } else {
-        if (guideX) guideX.classList.add('hidden');
-      }
-
-      st.x = targetX;
-      st.y = targetY;
-
-      const moveDist = Math.hypot(touch.clientX - dragStartCoord.x, touch.clientY - dragStartCoord.y);
-      if (moveDist > 6) {
-        appState.isDraggingSticker = true;
-      }
-
-      renderStrip();
-      updateFloatingLoupe(touch.clientX, touch.clientY, st.x, st.y, appState.isDraggingSticker);
-    } else if (isPanning) {
-      if (e.cancelable) e.preventDefault();
-      canvasPanX = touch.clientX - panStartX;
-      canvasPanY = touch.clientY - panStartY;
-      applyZoomTransform();
-    }
-  }
-
-  function handleEnd() { 
-    if (appState.dragTarget !== null) saveStateForUndo(); 
-    appState.dragTarget = null; 
-    isPanning = false;
-    initialStickerDist = 0;
-    appState.isDraggingSticker = false;
-    hideFloatingLoupe();
-    if (guideX) guideX.classList.add('hidden');
-    if (guideY) guideY.classList.add('hidden');
-  }
-
-  viewport.addEventListener('mousedown', handleStart); 
-  window.addEventListener('mousemove', handleMove); 
-  window.addEventListener('mouseup', handleEnd);
-  viewport.addEventListener('touchstart', handleStart, { passive: false }); 
-  window.addEventListener('touchmove', handleMove, { passive: false }); 
-  window.addEventListener('touchend', handleEnd);
+  const newSticker = {
+    id: Date.now(),
+    type: 'text',
+    text: text,
+    x: canvas ? canvas.width / 2 : 600,
+    y: canvas ? canvas.height / 2 : 1200,
+    size: 70,
+    rotation: 0,
+    color: '#FFFFFF',
+    fontFamily: appState.typography.fontFamily || 'Pretendard'
+  };
+  appState.stickers.push(newSticker);
+  appState.selectedStickerIdx = appState.stickers.length - 1;
+  showStickerControls(newSticker);
+  renderStrip();
 }
 
-// 회전 & 서식 제어
-function onSelectedStickerRotate(deg) {
-  if (appState.selectedStickerIdx >= 0 && appState.selectedStickerIdx < appState.stickers.length) {
-    const val = parseInt(deg);
-    appState.stickers[appState.selectedStickerIdx].rotation = val;
-    const lbl = document.getElementById('stickerRotateValueLabel');
-    if (lbl) lbl.textContent = `${val}°`;
-    renderStrip();
+function addEmojiSticker(emoji) {
+  saveStateForUndo();
+  pushRecentSticker('emoji', emoji);
+  const canvas = document.getElementById('photoCanvas');
+  const newSticker = {
+    id: Date.now(),
+    type: 'emoji',
+    text: emoji,
+    x: canvas ? canvas.width / 2 : 600,
+    y: canvas ? canvas.height / 2 : 1200,
+    size: 85,
+    rotation: 0
+  };
+  appState.stickers.push(newSticker);
+  appState.selectedStickerIdx = appState.stickers.length - 1;
+  showStickerControls(newSticker);
+  renderStrip();
+}
+
+function clearAllStickers() {
+  if (appState.stickers.length === 0) return;
+  if (!confirm("화면의 모든 스티커와 소품을 삭제하시겠습니까?")) return;
+  saveStateForUndo();
+  appState.stickers = [];
+  appState.selectedStickerIdx = -1;
+  const bar = document.getElementById('stickerControlBar');
+  if (bar) bar.classList.add('hidden');
+  renderStrip();
+}
+
+function showStickerControls(st) {
+  const bar = document.getElementById('stickerControlBar');
+  if (!bar) return;
+  bar.classList.remove('hidden');
+
+  const sizeS = document.getElementById('stickerSizeSlider');
+  if (sizeS) sizeS.value = st.size;
+  const rotS = document.getElementById('stickerRotateSlider');
+  if (rotS) rotS.value = st.rotation || 0;
+  const rotText = document.getElementById('stickerRotateValText');
+  if (rotText) rotText.textContent = `${st.rotation || 0}°`;
+
+  const customRow = document.getElementById('stickerTextCustomRow');
+  if (st.type === 'text') {
+    if (customRow) customRow.classList.remove('hidden');
+    const cp = document.getElementById('stickerColorPicker');
+    if (cp) cp.value = st.color || '#FFFFFF';
+    const fs = document.getElementById('stickerFontSelect');
+    if (fs) fs.value = st.fontFamily || 'Pretendard';
+  } else {
+    if (customRow) customRow.classList.add('hidden');
   }
 }
 
 function onSelectedStickerResize(size) {
   if (appState.selectedStickerIdx >= 0 && appState.selectedStickerIdx < appState.stickers.length) {
-    appState.stickers[appState.selectedStickerIdx].size = Math.round(parseInt(size) * 1.5);
+    appState.stickers[appState.selectedStickerIdx].size = parseInt(size, 10);
     renderStrip();
   }
+}
+
+function onSelectedStickerRotate(deg) {
+  if (appState.selectedStickerIdx >= 0 && appState.selectedStickerIdx < appState.stickers.length) {
+    const val = parseInt(deg, 10);
+    appState.stickers[appState.selectedStickerIdx].rotation = val;
+    const rotText = document.getElementById('stickerRotateValText');
+    if (rotText) rotText.textContent = `${val}°`;
+    renderStrip();
+  }
+}
+
+function resetSelectedStickerRotation() {
+  onSelectedStickerRotate(0);
+  const rotS = document.getElementById('stickerRotateSlider');
+  if (rotS) rotS.value = 0;
 }
 
 function onSelectedStickerColorChange(color) {
@@ -2529,70 +2142,15 @@ function deleteSelectedSticker() {
     saveStateForUndo();
     appState.stickers.splice(appState.selectedStickerIdx, 1);
     appState.selectedStickerIdx = -1;
-    hideFloatingLoupe();
     const bar = document.getElementById('stickerControlBar');
     if (bar) bar.classList.add('hidden');
     renderStrip();
   }
 }
 
-function addDirectTextSticker() {
-  const input = document.getElementById('directTextInput');
-  if (!input) return;
-  const val = input.value.trim();
-  if (!val) { alert("추가할 문구를 입력해주세요!"); return; }
-  addTextSticker(val);
-  input.value = '';
-}
-
-function addTextSticker(text) {
-  saveStateForUndo(); 
-  const canvas = document.getElementById('photoCanvas');
-  const newSticker = { 
-    id: Date.now(), type: 'text', text, 
-    x: canvas ? canvas.width / 2 : 600, 
-    y: canvas ? canvas.height / 2 : 1800, 
-    size: 70, rotation: 0, color: '#FFFFFF', 
-    fontFamily: appState.typography.fontFamily || 'Pretendard' 
-  };
-  appState.stickers.push(newSticker); 
-  appState.selectedStickerIdx = appState.stickers.length - 1;
-  showStickerControls(newSticker); 
-  renderStrip();
-}
-
-function clearAllStickers() { 
-  saveStateForUndo(); 
-  appState.stickers = []; 
-  appState.selectedStickerIdx = -1; 
-  hideFloatingLoupe();
-  const bar = document.getElementById('stickerControlBar'); 
-  if (bar) bar.classList.add('hidden'); 
-  renderStrip(); 
-}
-
-function showStickerControls(st) {
-  const bar = document.getElementById('stickerControlBar'); 
-  if (!bar) return;
-  bar.classList.remove('hidden');
-  const sizeS = document.getElementById('stickerSizeSlider'); 
-  if (sizeS) sizeS.value = Math.round(st.size / 1.5);
-  
-  const rotS = document.getElementById('stickerRotateSlider'); 
-  const rotLbl = document.getElementById('stickerRotateValueLabel');
-  if (rotS) rotS.value = st.rotation || 0;
-  if (rotLbl) rotLbl.textContent = `${st.rotation || 0}°`;
-
-  const customRow = document.getElementById('stickerTextCustomRow');
-  if (st.type === 'text') { 
-    if (customRow) customRow.classList.remove('hidden'); 
-    const cp = document.getElementById('stickerColorPicker'); if (cp) cp.value = st.color || '#FFFFFF'; 
-    const fs = document.getElementById('stickerFontSelect'); if (fs) fs.value = st.fontFamily || 'Pretendard'; 
-  } else { 
-    if (customRow) customRow.classList.add('hidden'); 
-  }
-}
-
+// ========================================================
+// 14. 캔버스 뷰포트 인터랙션 & 핀치 줌 / 한 손가락 패닝 (Pan & Zoom)
+// ========================================================
 function zoomCanvas(amount) {
   canvasZoom = Math.max(0.4, Math.min(3.0, canvasZoom + amount));
   applyZoomTransform();
@@ -2611,7 +2169,7 @@ function applyZoomTransform() {
     wrapper.style.transform = `translate(${canvasPanX}px, ${canvasPanY}px) scale(${canvasZoom})`;
   }
   const label = document.getElementById('canvasZoomLabel');
-  if (label) label.textContent = Math.round(canvasZoom * 100) + '%';
+  if (label) label.textContent = `${Math.round(canvasZoom * 100)}%`;
 }
 
 function setupCanvasPinchZoom() {
@@ -2620,9 +2178,10 @@ function setupCanvasPinchZoom() {
 
   let initialPinchDist = 0;
   let initialZoom = 1.0;
+  let lastTap = 0;
 
   viewport.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 2 && appState.selectedStickerIdx === -1) {
+    if (e.touches.length === 2) {
       e.preventDefault();
       initialPinchDist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
@@ -2633,7 +2192,7 @@ function setupCanvasPinchZoom() {
   }, { passive: false });
 
   viewport.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 2 && appState.selectedStickerIdx === -1 && initialPinchDist > 0) {
+    if (e.touches.length === 2 && initialPinchDist > 0) {
       e.preventDefault();
       const currentDist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
@@ -2647,1351 +2206,86 @@ function setupCanvasPinchZoom() {
 
   viewport.addEventListener('touchend', (e) => {
     if (e.touches.length < 2) initialPinchDist = 0;
+    if (e.touches.length === 0) {
+      const now = Date.now();
+      if (now - lastTap < 300) {
+        resetCanvasZoom();
+      }
+      lastTap = now;
+    }
   });
 }
 
-// ========================================================
-// 15. 가변 스플릿 리사이저 바
-// ========================================================
-function initSplitResizer() {
-  const resizer = document.getElementById('editorSplitResizer');
-  const canvasPane = document.getElementById('editorCanvasPane');
-  const controlPane = document.getElementById('editorControlPane');
-  const container = document.getElementById('screenEdit');
-  if (!resizer || !canvasPane || !controlPane || !container) return;
+function initCanvasInteractions() {
+  const canvas = document.getElementById('photoCanvas');
+  const viewport = document.getElementById('canvasViewport');
+  if (!canvas || !viewport) return;
 
-  let isResizing = false;
+  function getCanvasCoords(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      clientX, clientY,
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
+  }
 
   function onPointerDown(e) {
-    isResizing = true;
-    document.body.style.cursor = window.innerWidth >= 640 ? 'col-resize' : 'row-resize';
-    e.preventDefault();
+    if (e.touches && e.touches.length > 1) return;
+    const coords = getCanvasCoords(e);
+    let hitSticker = false;
+
+    for (let i = appState.stickers.length - 1; i >= 0; i--) {
+      const st = appState.stickers[i];
+      const hitRadius = Math.max(70, st.size * 0.9);
+      const dist = Math.hypot(coords.x - st.x, coords.y - st.y);
+      if (dist <= hitRadius) {
+        appState.selectedStickerIdx = i;
+        appState.dragTarget = i;
+        appState.dragStartPos = { x: coords.x - st.x, y: coords.y - st.y };
+        showStickerControls(st);
+        renderStrip();
+        hitSticker = true;
+        break;
+      }
+    }
+
+    if (!hitSticker) {
+      isPanning = true;
+      panStartX = coords.clientX - canvasPanX;
+      panStartY = coords.clientY - canvasPanY;
+      appState.selectedStickerIdx = -1;
+      appState.dragTarget = null;
+      magneticSnapLines = { x: null, y: null };
+      const bar = document.getElementById('stickerControlBar');
+      if (bar) bar.classList.add('hidden');
+      renderStrip();
+    }
   }
 
   function onPointerMove(e) {
-    if (!isResizing) return;
-    const isLandscape = window.innerWidth >= 640 && window.innerWidth > window.innerHeight;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-    if (isLandscape) {
-      const containerRect = container.getBoundingClientRect();
-      const offset = clientX - containerRect.left;
-      const pct = Math.max(35, Math.min(75, (offset / containerRect.width) * 100));
-      canvasPane.style.width = `${pct}%`;
-      controlPane.style.width = `${100 - pct}%`;
-    } else {
-      const containerRect = container.getBoundingClientRect();
-      const offset = clientY - containerRect.top;
-      const pct = Math.max(35, Math.min(75, (offset / containerRect.height) * 100));
-      canvasPane.style.height = `${pct}%`;
-      controlPane.style.height = `${100 - pct}%`;
-    }
-  }
-
-  function onPointerUp() {
-    if (isResizing) {
-      isResizing = false;
-      document.body.style.cursor = '';
-    }
-  }
-
-  resizer.addEventListener('mousedown', onPointerDown);
-  resizer.addEventListener('touchstart', onPointerDown, { passive: false });
-  window.addEventListener('mousemove', onPointerMove);
-  window.addEventListener('touchmove', onPointerMove, { passive: false });
-  window.addEventListener('mouseup', onPointerUp);
-  window.addEventListener('touchend', onPointerUp);
-}
-
-// ========================================================
-// 16. 🌟 2중 큐 무소음 자동 아카이빙 & [⭐ 추억네컷 찜] 영구 보존 엔진
-// ========================================================
-async function autoArchiveToCloudQuietly(canvas, isFav = false) {
-  if (!canvas) return;
-
-  try {
-    const base64Img = canvas.toDataURL('image/png', 0.92);
-    const photoId = "photo_" + Date.now();
-    appState.currentPhotoId = photoId;
-
-    // 1차: 브라우저 로컬 스토리지에 즉시 무소음 안전 저장 (저장 성공률 100%)
-    const localEntry = {
-      id: photoId,
-      fileUrl: base64Img,
-      date: getFormattedTodayDate(),
-      isFavorite: isFav
-    };
-
-    let localArchive = JSON.parse(localStorage.getItem('chueok_local_gallery') || '[]');
-    if (!isFav) {
-      const normalPhotos = localArchive.filter(p => !p.isFavorite);
-      if (normalPhotos.length >= MAX_GALLERY_SLOTS) {
-        const oldestNormal = normalPhotos[normalPhotos.length - 1];
-        localArchive = localArchive.filter(p => p.id !== oldestNormal.id);
-      }
-    }
-    localArchive.unshift(localEntry);
-    localStorage.setItem('chueok_local_gallery', JSON.stringify(localArchive));
-
-    // 2차: 구글 백엔드 클라우드로 백그라운드 동기화
-    if (appState.isRegisteredUser && appState.currentUser) {
-      fetch(GOOGLE_DB_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({
-          action: 'SAVE_TO_GALLERY',
-          userId: appState.currentUser.userId,
-          base64Data: extractPureBase64(base64Img),
-          isFavorite: isFav
-        })
-      }).catch(() => {});
-    }
-  } catch (e) {}
-}
-
-// 🌟 [추억네컷 찜] 원클릭 즉시 토글 (10장 자동 삭제에서 영구 제외)
-async function toggleFavoriteStrip() {
-  playBeep(950);
-  triggerHaptic('medium');
-
-  appState.isCurrentFavorite = !appState.isCurrentFavorite;
-  updateFavoriteButtonUI();
-
-  renderStrip(true);
-  const canvas = document.getElementById('photoCanvas');
-  if (!canvas) return;
-
-  if (appState.isCurrentFavorite) {
-    alert("⭐ 이 사진이 [추억네컷 찜]에 등록되었습니다!\n최근 히스토리 10장 FIFO 자동 삭제에서 영구 제외되어 안전하게 보관됩니다.");
-    autoArchiveToCloudQuietly(canvas, true);
-  } else {
-    alert("찜이 해제되었습니다. (일반 최근 히스토리 목록으로 관리됩니다)");
-    if (appState.currentPhotoId) {
-      let localArchive = JSON.parse(localStorage.getItem('chueok_local_gallery') || '[]');
-      const target = localArchive.find(p => p.id === appState.currentPhotoId);
-      if (target) {
-        target.isFavorite = false;
-        localStorage.setItem('chueok_local_gallery', JSON.stringify(localArchive));
-      }
-    }
-  }
-}
-
-function updateFavoriteButtonUI() {
-  const btn = document.getElementById('btnFavoriteStrip');
-  const label = document.getElementById('btnFavoriteText');
-  if (!btn || !label) return;
-
-  if (appState.isCurrentFavorite) {
-    btn.className = "bg-amber-500 hover:bg-amber-600 text-white font-black py-2.5 rounded-xl text-[9px] flex flex-col items-center justify-center space-y-0.5 shadow active:scale-95 transition ring-2 ring-white";
-    label.textContent = "⭐ 찜 완료";
-  } else {
-    btn.className = "bg-rose-500 hover:bg-rose-600 text-white font-black py-2.5 rounded-xl text-[9px] flex flex-col items-center justify-center space-y-0.5 shadow active:scale-95 transition";
-    label.textContent = "추억네컷 찜";
-  }
-}
-
-// ========================================================
-// 17. 🌟 15Mbps 초고화질 무빙 비디오 (2×2/1×4 비율 일치 및 거울모드 보정)
-// ========================================================
-async function generateFourCutVideo() {
-  if (!appState.isRegisteredUser) {
-    alert("15Mbps 초고화질 무빙 비디오 생성은 [정회원 전용] 기능입니다. 로그인 후 이용해 주세요! 🎬");
-    openAuthModal('login');
-    return;
-  }
-
-  const cuts = appState.cutMode || 4;
-  const hasValidVideo = appState.selectedIndices.every(idx => idx !== null && appState.shotVideoBlobs[idx]);
-  if (!hasValidVideo) {
-    alert("촬영 영상 데이터가 부족합니다. 부스에서 컷들을 연속 촬영했을 때 가능합니다.");
-    return;
-  }
-
-  const btn = document.getElementById('btnAutoVideo'); 
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>합성 중</span>`;
-  }
-  if (window.lucide) lucide.createIcons();
-
-  try {
-    const videoElements = await Promise.all(appState.selectedIndices.map(shotIdx => {
-      return new Promise((resolve) => {
-        const blob = appState.shotVideoBlobs[shotIdx]; 
-        const v = document.createElement('video'); 
-        v.src = URL.createObjectURL(blob); 
-        v.muted = true; v.loop = true; v.setAttribute('playsinline', ''); 
-        v.onloadedmetadata = () => { v.play().then(() => resolve(v)).catch(() => resolve(v)); };
-      });
-    }));
-
-    const vCanvas = document.createElement('canvas'); 
-    
-    // 🌟 [요구사항 12, 13] 규격에 따른 동적 비디오 비율 일치 (2x2: 1440x2160, 1x4: 1080x3240)
-    if (appState.selectedFormat === 'grid') {
-      vCanvas.width = 1440; 
-      vCanvas.height = 2160;
-    } else {
-      vCanvas.width = 1080; 
-      vCanvas.height = 3240;
-    }
-
-    const vCtx = vCanvas.getContext('2d');
-    vCtx.imageSmoothingEnabled = true;
-    vCtx.imageSmoothingQuality = 'high';
-
-    let mimeType = 'video/mp4'; 
-    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported('video/mp4')) { 
-      mimeType = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) ? 'video/webm;codecs=vp8' : 'video/webm'; 
-    }
-
-    const stream = vCanvas.captureStream(60); 
-    const recorder = new MediaRecorder(stream, { 
-      mimeType,
-      videoBitsPerSecond: 15000000 // 🌟 15Mbps 초고화질 무손실
-    }); 
-    const chunks = []; 
-    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-
-    recorder.onstop = async () => {
-      const ext = mimeType.includes('mp4') ? 'mp4' : 'webm'; 
-      const blob = new Blob(chunks, { type: mimeType }); 
-      currentGeneratedVideoBlob = blob;
-      currentGeneratedVideoFileName = `[추억네컷]_Video_${Date.now()}.${ext}`;
-
-      openVideoResultModal(blob);
-
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = `<i data-lucide="video" class="w-3.5 h-3.5"></i><span>4컷 비디오</span>`;
-      }
-      if (window.lucide) lucide.createIcons();
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const pureBase64 = extractPureBase64(reader.result);
-        uploadMediaToGoogleDrive(pureBase64, 'video', currentGeneratedVideoFileName, mimeType).catch(() => {});
-      };
-      reader.readAsDataURL(blob);
-    };
-    recorder.start();
-
-    // 0.2초 키프레임 포스터 주입 및 루프 시작
-    const posterCanvas = document.getElementById('photoCanvas');
-    const startTime = performance.now(); 
-    const totalDuration = 6000;
-    const isGrid = (appState.selectedFormat === 'grid');
-    const pad = Math.round(appState.frameThickness * 0.9);
-    const gap = Math.round(pad * 0.45);
-    const topH = 160; const bottomH = 180;
-
-    function renderVideoLoop(time) {
-      const elapsed = time - startTime; 
-
-      if (elapsed < 180 && posterCanvas) {
-        vCtx.drawImage(posterCanvas, 0, 0, vCanvas.width, vCanvas.height);
-      } else {
-        vCtx.fillStyle = appState.frameColor; 
-        vCtx.fillRect(0, 0, vCanvas.width, vCanvas.height); 
-
-        if (isGrid && cuts === 4) {
-          const halfW = (vCanvas.width - (pad * 2) - gap) / 2;
-          const halfH = (vCanvas.height - topH - bottomH - gap) / 2;
-          const coords = [
-            { x: pad, y: topH },
-            { x: pad + halfW + gap, y: topH },
-            { x: pad, y: topH + halfH + gap },
-            { x: pad + halfW + gap, y: topH + halfH + gap }
-          ];
-
-          for (let i = 0; i < 4; i++) {
-            drawVideoSlot(vCtx, videoElements[i], coords[i].x, coords[i].y, halfW, halfH);
-          }
-        } else {
-          const slotW = vCanvas.width - (pad * 2);
-          const slotH = (vCanvas.height - topH - bottomH - (gap * (cuts - 1))) / cuts;
-          for (let i = 0; i < cuts; i++) {
-            const vy = topH + (i * (slotH + gap));
-            drawVideoSlot(vCtx, videoElements[i], pad, vy, slotW, slotH);
-          }
-        }
-
-        renderThemeOverlayGraphics(vCtx, vCanvas, pad, appState.frameStyle, false, appState.layout);
-        renderStickersAndMirrors(vCtx, vCanvas, appState.layout);
-      }
-
-      if (elapsed < totalDuration) requestAnimationFrame(renderVideoLoop); 
-      else recorder.stop();
-    }
-    requestAnimationFrame(renderVideoLoop);
-  } catch (err) { 
-    alert("비디오 생성 실패: " + err.message); 
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = `<i data-lucide="video" class="w-3.5 h-3.5"></i><span>4컷 비디오</span>`; 
-    }
-    if (window.lucide) lucide.createIcons(); 
-  }
-}
-
-// 🌟 비디오 슬롯 거울모드 보정 렌더러
-function drawVideoSlot(ctx, v, x, y, w, h) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(x, y, w, h);
-  ctx.clip();
-
-  const vW = v.videoWidth || 1280; 
-  const vH = v.videoHeight || 720; 
-  const vRatio = vW / vH; 
-  const targetRatio = w / h; 
-  let rw, rh;
-  if (vRatio > targetRatio) { rh = h; rw = h * vRatio; } 
-  else { rw = w; rh = w / vRatio; }
-
-  const drawX = x + (w - rw) / 2;
-  const drawY = y + (h - rh) / 2;
-
-  // 전면 카메라인 경우 거울모드 반전 유지
-  if (appState.facingMode === 'user') {
-    ctx.translate(drawX + rw, drawY);
-    ctx.scale(-1, 1);
-    ctx.drawImage(v, 0, 0, rw, rh);
-  } else {
-    ctx.drawImage(v, drawX, drawY, rw, rh);
-  }
-  ctx.restore();
-}
-
-// 🌟 QR 다운로드
-async function generateImageQRCode() {
-  const btn = document.getElementById('btnSaveQR'); 
-  if (btn) { 
-    btn.disabled = true; 
-    btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>QR 생성 중</span>`; 
-  }
-  if (window.lucide) lucide.createIcons();
-
-  renderStrip(true); 
-  const canvas = document.getElementById('photoCanvas'); 
-  if (!canvas) return;
-
-  autoArchiveToCloudQuietly(canvas, appState.isCurrentFavorite);
-
-  const base64Img = canvas.toDataURL('image/png');
-  const fileName = `[추억네컷]_${appState.selectedFormat || 'photo'}_${Date.now()}.png`;
-
-  try {
-    const res = await uploadMediaToGoogleDrive(extractPureBase64(base64Img), 'image', fileName, 'image/png');
-
-    if (btn) { 
-      btn.disabled = false; 
-      btn.innerHTML = `<i data-lucide="qr-code" class="w-3.5 h-3.5"></i><span>QR 다운</span>`; 
-    }
-    if (window.lucide) lucide.createIcons();
-
-    if (res && res.success && res.fileId) {
-      const driveDirectUrl = `https://drive.google.com/file/d/${res.fileId}/view?usp=sharing`;
-      displayResultWithQR(driveDirectUrl);
-    } else {
-      alert("구글 드라이브 업로드 지연 중입니다. 잠시 후 다시 시도해 주세요.");
-    }
-  } catch (err) {
-    if (btn) { 
-      btn.disabled = false; 
-      btn.innerHTML = `<i data-lucide="qr-code" class="w-3.5 h-3.5"></i><span>QR 다운</span>`; 
-    }
-    if (window.lucide) lucide.createIcons();
-    alert("QR 생성 중 오류가 발생했습니다: " + err.message);
-  }
-}
-
-async function uploadMediaToGoogleDrive(base64Data, fileType, fileName, mimeType) {
-  try {
-    const res = await fetch(GOOGLE_DB_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'UPLOAD_MEDIA',
-        base64Data: base64Data,
-        fileType: fileType,
-        fileName: fileName,
-        mimeType: mimeType
-      })
-    });
-    return await res.json();
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-}
-
-function autoSavePDF() {
-  renderStrip(true); 
-  const canvas = document.getElementById('photoCanvas'); 
-  if (!canvas) return; 
-
-  autoArchiveToCloudQuietly(canvas, appState.isCurrentFavorite);
-
-  const imgData = canvas.toDataURL('image/jpeg', 0.98); 
-  const { jsPDF } = window.jspdf; 
-
-  const orientation = (canvas.width > canvas.height) ? 'landscape' : 'portrait'; 
-  const pdf = new jsPDF({ orientation, unit: 'mm', format: [102, 152] }); 
-
-  const pdfW = pdf.internal.pageSize.getWidth(), pdfH = pdf.internal.pageSize.getHeight(); 
-  const margin = 2; 
-  const maxW = pdfW - (margin * 2), maxH = pdfH - (margin * 2); 
-  const imgRatio = canvas.width / canvas.height; 
-  let printW = maxW, printH = printW / imgRatio; 
-  if (printH > maxH) { printH = maxH; printW = printH * imgRatio; }
-  pdf.addImage(imgData, 'JPEG', (pdfW - printW) / 2, (pdfH - printH) / 2, printW, printH); 
-  pdf.save(`[추억네컷]_Print_${appState.selectedFormat}_${Date.now()}.pdf`);
-}
-
-function sharePhotoDirectly() {
-  renderStrip(true); 
-  const canvas = document.getElementById('photoCanvas'); 
-  if (!canvas) return;
-
-  autoArchiveToCloudQuietly(canvas, appState.isCurrentFavorite);
-
-  canvas.toBlob(async (blob) => {
-    if (!blob) return; 
-    const file = new File([blob], `[추억네컷]_Photo_${Date.now()}.png`, { type: 'image/png' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) { 
-      try { await navigator.share({ files: [file], title: '추억의 네컷', text: '추억의 네컷 사진입니다!' }); } catch (err) {} 
-    } else { 
-      const url = URL.createObjectURL(blob); 
-      const a = document.createElement('a'); a.href = url; a.download = file.name; 
-      document.body.appendChild(a); a.click(); document.body.removeChild(a); 
-    }
-  }, 'image/png');
-}
-
-function displayResultWithQR(url) {
-  const qrBox = document.getElementById('qrcodeArea'); 
-  if (!qrBox) return; 
-  qrBox.innerHTML = ''; 
-  new QRCode(qrBox, { text: url, width: 160, height: 160, correctLevel: QRCode.CorrectLevel.M });
-  showScreen('screenResult'); 
-  startAutoReset();
-}
-
-function returnToEditor() { 
-  if (appState.resetInterval) { clearInterval(appState.resetInterval); appState.resetInterval = null; } 
-  showScreen('screenEdit'); 
-  renderStrip(); 
-}
-
-function openVideoResultModal(blob) {
-  const modal = document.getElementById('videoResultModal');
-  const player = document.getElementById('videoResultPlayer');
-  if (!modal || !player) return;
-  player.src = URL.createObjectURL(blob);
-  modal.classList.remove('hidden');
-  modal.style.removeProperty('display');
-  modal.style.setProperty('display', 'flex', 'important');
-  if (window.lucide) lucide.createIcons();
-}
-
-function closeVideoResultModal() {
-  const modal = document.getElementById('videoResultModal');
-  const player = document.getElementById('videoResultPlayer');
-  if (player) player.pause();
-  if (modal) {
-    modal.classList.add('hidden');
-    modal.style.setProperty('display', 'none', 'important');
-  }
-}
-
-function downloadCurrentVideoFile() {
-  if (!currentGeneratedVideoBlob) return;
-  const url = URL.createObjectURL(currentGeneratedVideoBlob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = currentGeneratedVideoFileName || `[추억네컷]_Video_${Date.now()}.mp4`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-}
-
-async function shareCurrentVideoFile() {
-  if (!currentGeneratedVideoBlob) return;
-  const ext = currentGeneratedVideoFileName.endsWith('.mp4') ? 'mp4' : 'webm';
-  const file = new File([currentGeneratedVideoBlob], currentGeneratedVideoFileName, { type: `video/${ext}` });
-
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({
-        files: [file],
-        title: '추억의 네컷 비디오',
-        text: '추억의 네컷 4컷 움직이는 비디오입니다! 🎬'
-      });
-      return;
-    } catch (e) {
-      if (e.name === 'AbortError') return;
-    }
-  }
-  downloadCurrentVideoFile();
-}
-
-// ========================================================
-// 18. 이용후기, 고객소리함 & 관리자 모드
-// ========================================================
-function handleStarClick(starNum) {
-  currentRatingValue = starNum;
-  updateRatingUI(starNum);
-}
-
-function updateRatingUI(num) {
-  const scoreText = document.getElementById('ratingValueText');
-  if (scoreText) scoreText.textContent = num.toFixed(1);
-
-  for (let i = 1; i <= 5; i++) {
-    const starEl = document.getElementById('star' + i);
-    if (!starEl) continue;
-    if (num >= i) {
-      starEl.className = 'text-amber-500 transition hover:scale-110 cursor-pointer';
-    } else {
-      starEl.className = 'text-slate-300 transition hover:scale-110 cursor-pointer';
-    }
-  }
-}
-
-async function fetchCloudBoardPosts() {
-  try {
-    const res = await fetch(`${GOOGLE_DB_URL}?api=true&_t=${Date.now()}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success && Array.isArray(data.reviews)) {
-        localStorage.setItem('vibe_posts', JSON.stringify(data.reviews));
-        renderBoard();
-        renderAdminReviewManageList();
-      }
-    }
-  } catch (e) {
-    renderBoard();
-  }
-}
-
-function renderBoard() {
-  const posts = JSON.parse(localStorage.getItem('vibe_posts') || '[]');
-  const container = document.getElementById('boardListArea');
-  const totalCount = posts.length;
-  let totalRating = 0;
-  posts.forEach(p => totalRating += (Number(p.rating) || 5.0));
-  const avgRating = totalCount > 0 ? (totalRating / totalCount).toFixed(1) : '5.0';
-
-  const avgScoreEl = document.getElementById('boardAvgScore');
-  const avgStarsEl = document.getElementById('boardAvgStars');
-  const totalCountEl = document.getElementById('boardTotalCount');
-  if (avgScoreEl) avgScoreEl.textContent = avgRating;
-  if (totalCountEl) totalCountEl.textContent = totalCount;
-  if (avgStarsEl) {
-    let s = '';
-    for (let i = 0; i < Math.floor(parseFloat(avgRating)); i++) s += '⭐';
-    avgStarsEl.textContent = s || '⭐';
-  }
-  if (!container) return;
-  if (posts.length === 0) { 
-    container.innerHTML = `<p class="text-xs text-slate-400 text-center py-8">등록된 후기가 없습니다. 첫 후기를 남겨보세요! ✨</p>`; 
-    return; 
-  }
-
-  container.innerHTML = posts.map(p => {
-    const ratingNum = Number(p.rating) || 5.0; 
-    let starStr = '';
-    for (let i = 0; i < Math.floor(ratingNum); i++) starStr += '⭐';
-
-    return `
-      <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-1">
-        <div class="flex justify-between items-center">
-          <div class="flex items-center space-x-1.5">
-            <span class="font-bold text-xs text-slate-800">${escapeHtml(p.nickname)}</span>
-            <span class="text-[10px] text-amber-500 font-black">${starStr} ${ratingNum.toFixed(1)}</span>
-          </div>
-          <span class="text-[10px] text-slate-400">${p.date}</span>
-        </div>
-        <p class="text-xs text-slate-700 break-words leading-relaxed">${escapeHtml(p.content)}</p>
-      </div>
-    `;
-  }).join('');
-}
-
-async function submitBoardPost() {
-  const nicknameInput = document.getElementById('boardNickname');
-  const contentInput = document.getElementById('boardContent');
-  const nickname = (nicknameInput ? nicknameInput.value : '').trim() || '익명의 사진작가';
-  const content = (contentInput ? contentInput.value : '').trim();
-  const rating = currentRatingValue;
-  if (!content) { alert("후기 내용을 입력해주세요."); return; }
-
-  const btn = document.getElementById('btnSubmitBoard'); 
-  btn.disabled = true; 
-  btn.textContent = "등록 중...";
-
-  const tempPost = {
-    id: Date.now(),
-    nickname: nickname,
-    content: content,
-    rating: rating,
-    date: getFormattedTodayDate()
-  };
-  let posts = JSON.parse(localStorage.getItem('vibe_posts') || '[]');
-  posts.unshift(tempPost);
-  localStorage.setItem('vibe_posts', JSON.stringify(posts));
-  renderBoard();
-
-  if (contentInput) contentInput.value = ''; 
-  if (nicknameInput) nicknameInput.value = '';
-
-  try {
-    await fetch(GOOGLE_DB_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'ADD_REVIEW', nickname: nickname, rating: rating, content: content })
-    });
-    setTimeout(fetchCloudBoardPosts, 500);
-  } catch (err) {
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "등록";
-  }
-}
-
-async function deleteReviewPost(id) {
-  if (!confirm("이 후기를 영구 삭제하시겠습니까?")) return;
-
-  let posts = JSON.parse(localStorage.getItem('vibe_posts') || '[]');
-  posts = posts.filter(p => p.id !== id);
-  localStorage.setItem('vibe_posts', JSON.stringify(posts));
-  renderBoard();
-  renderAdminReviewManageList();
-
-  try {
-    await fetch(GOOGLE_DB_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'DELETE_REVIEW', id: id })
-    });
-  } catch (e) {}
-}
-
-function renderAdminReviewManageList() {
-  const listEl = document.getElementById('adminReviewManageList');
-  if (!listEl) return;
-  const posts = JSON.parse(localStorage.getItem('vibe_posts') || '[]');
-  if (posts.length === 0) { 
-    listEl.innerHTML = `<p class="text-xs text-slate-400 py-3 text-center">등록된 후기가 없습니다.</p>`; 
-    return; 
-  }
-  listEl.innerHTML = posts.map(p => `
-    <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
-      <div class="flex justify-between items-center">
-        <span class="font-bold text-slate-800">${escapeHtml(p.nickname)} <b class="text-amber-500 ml-1">★ ${p.rating || 5.0}</b></span>
-        <button onclick="deleteReviewPost(${p.id})" class="text-[10px] bg-rose-50 text-rose-600 border border-rose-200 px-2 py-0.5 rounded font-black">삭제</button>
-      </div>
-      <p class="text-[11px] text-slate-600 break-words">${escapeHtml(p.content)}</p>
-    </div>
-  `).join('');
-}
-
-function openCustomerBotModal() {
-  const m = document.getElementById('customerBotModal');
-  if (m) {
-    m.classList.remove('hidden');
-    m.style.removeProperty('display');
-    m.style.setProperty('display', 'flex', 'important');
-  }
-  if (window.lucide) lucide.createIcons();
-}
-
-function closeCustomerBotModal() {
-  const m = document.getElementById('customerBotModal');
-  if (m) {
-    m.classList.add('hidden');
-    m.style.setProperty('display', 'none', 'important');
-  }
-}
-
-async function sendCustomerBotMessage() {
-  const emailInput = document.getElementById('botContactEmail');
-  const chatInput = document.getElementById('botChatInput');
-  const email = (emailInput ? emailInput.value : '').trim();
-  const userMsg = (chatInput ? chatInput.value : '').trim();
-
-  if (!userMsg) return;
-
-  const chatArea = document.getElementById('chatMessagesArea');
-  const userDiv = document.createElement('div');
-  userDiv.className = "flex items-start justify-end space-x-2";
-  userDiv.innerHTML = `
-    <div class="chat-bubble-user p-3 max-w-[80%] leading-relaxed">
-      ${email ? `<span class="block text-[9px] opacity-80 mb-1">📩 ${escapeHtml(email)}</span>` : ''}
-      ${escapeHtml(userMsg)}
-    </div>
-  `;
-  chatArea.appendChild(userDiv);
-  if (chatInput) chatInput.value = '';
-  chatArea.scrollTop = chatArea.scrollHeight;
-
-  const btn = document.getElementById('btnSendBot');
-  btn.disabled = true;
-
-  const telemetry = await collectDeviceTelemetry();
-  const deviceInfoStr = `${telemetry.device} / ${telemetry.os} / ${telemetry.browser} (${telemetry.screen})`;
-
-  setTimeout(async () => {
-    let replyComment = email
-      ? `소중한 의견이 정상 접수되었습니다! 보내주신 내용을 토대로 서비스 개선에 적극 반영하며, 기재해주신 이메일(<b>${escapeHtml(email)}</b>)로 상세히 답변드리겠습니다. 감사합니다! 💖`
-      : `소중한 의견이 정상 접수되었습니다! 보내주신 피드백을 바탕으로 시스템을 지속적으로 개선하겠습니다. (※ 개별 답변이 필요하신 경우 이메일 주소를 함께 남겨주세요.) 😊`;
-
-    const aiDiv = document.createElement('div');
-    aiDiv.className = "flex items-start space-x-2";
-    aiDiv.innerHTML = `
-      <div class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0 text-[10px] font-black">접수</div>
-      <div class="chat-bubble-ai p-3 max-w-[85%] leading-relaxed text-slate-800">
-        ${replyComment}
-      </div>
-    `;
-    chatArea.appendChild(aiDiv);
-    chatArea.scrollTop = chatArea.scrollHeight;
-    btn.disabled = false;
-
-    try {
-      await fetch(GOOGLE_DB_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({
-          action: 'ADD_INQUIRY',
-          email: email,
-          message: userMsg,
-          deviceInfo: deviceInfoStr
-        })
-      });
-    } catch (e) {}
-  }, 400);
-}
-
-// 관리자 센터 호출
-function promptAdminMode(e) {
-  if (e) { e.preventDefault(); e.stopPropagation(); }
-
-  if (appState.isAdmin && appState.currentUser && appState.currentUser.userId === 'knsupolo') {
-    openAdminDashboard();
-    return;
-  }
-
-  const pw = prompt("관리자 비밀번호를 입력하세요:");
-  if (pw === "12345678" || pw === "0724" || pw === "1234") {
-    appState.isAdmin = true;
-    openAdminDashboard();
-  } else if (pw !== null) {
-    alert("비밀번호가 올바르지 않습니다.");
-  }
-}
-
-let hourlyChartInstance = null;
-let deviceChartInstance = null;
-
-function openAdminDashboard() {
-  const modal = document.getElementById('adminDashboardModal');
-  if (!modal) return;
-  modal.classList.remove('hidden');
-  modal.style.removeProperty('display');
-  modal.style.setProperty('display', 'flex', 'important');
-  updateAdminDashboardStats();
-  renderAdminNoticeManageList();
-  renderAdminReviewManageList();
-  renderAdminLocationStats();
-  switchAdminTab('stats');
-  if (window.lucide) lucide.createIcons();
-}
-
-function closeAdminDashboard() {
-  const modal = document.getElementById('adminDashboardModal');
-  if (modal) {
-    modal.classList.add('hidden');
-    modal.style.setProperty('display', 'none', 'important');
-  }
-}
-
-function switchAdminTab(tabName) {
-  ['stats', 'theme', 'notices', 'reviews'].forEach(t => {
-    const btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
-    const content = document.getElementById('adminTab' + t.charAt(0).toUpperCase() + t.slice(1));
-    if (t === tabName) {
-      if (btn) btn.className = "flex-1 py-3 border-b-2 border-theme text-theme font-black";
-      if (content) content.classList.remove('hidden');
-    } else {
-      if (btn) btn.className = "flex-1 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-700";
-      if (content) content.classList.add('hidden');
-    }
-  });
-  if (tabName === 'stats') setTimeout(renderCharts, 100);
-}
-
-function updateAdminDashboardStats() {
-  const todayStr = getFormattedTodayDate();
-  const logs = JSON.parse(localStorage.getItem('chueok_visitor_logs') || '[]');
-  const todayVisits = parseInt(localStorage.getItem('chueok_stat_today_' + todayStr) || '1', 10);
-  const totalVisits = parseInt(localStorage.getItem('chueok_stat_total') || '2180', 10);
-  const now = new Date();
-  const weekAgo = new Date(); weekAgo.setDate(now.getDate() - 7);
-  const monthAgo = new Date(); monthAgo.setDate(now.getDate() - 30);
-  let weekVisits = 0, monthVisits = 0;
-
-  logs.forEach(l => {
-    const logDate = new Date(l.date.replace(/\./g, '-'));
-    if (logDate >= weekAgo) weekVisits++;
-    if (logDate >= monthAgo) monthVisits++;
-  });
-
-  const elToday = document.getElementById('dashToday');
-  const elWeek = document.getElementById('dashWeek');
-  const elMonth = document.getElementById('dashMonth');
-  const elTotal = document.getElementById('dashTotal');
-  if (elToday) elToday.textContent = todayVisits;
-  if (elWeek) elWeek.textContent = Math.max(todayVisits, weekVisits);
-  if (elMonth) elMonth.textContent = Math.max(todayVisits, monthVisits);
-  if (elTotal) elTotal.textContent = totalVisits.toLocaleString();
-}
-
-function renderCharts() {
-  if (typeof Chart === 'undefined') return;
-  const logs = JSON.parse(localStorage.getItem('chueok_visitor_logs') || '[]');
-
-  const hourlyCounts = Array(24).fill(0);
-  logs.forEach(l => { if (typeof l.hour === 'number' && l.hour >= 0 && l.hour <= 23) hourlyCounts[l.hour]++; });
-
-  const ctxHourly = document.getElementById('chartHourly');
-  if (ctxHourly) {
-    if (hourlyChartInstance) hourlyChartInstance.destroy();
-    hourlyChartInstance = new Chart(ctxHourly.getContext('2d'), {
-      type: 'bar',
-      data: { labels: Array.from({length: 24}, (_, i) => i + '시'), datasets: [{ label: '방문자수', data: hourlyCounts, backgroundColor: 'rgba(244, 63, 94, 0.75)', borderRadius: 6 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-    });
-  }
-
-  const deviceCounts = JSON.parse(localStorage.getItem('chueok_device_stats') || '{}');
-  const deviceLabels = ["아이폰", "안드로이드폰", "아이패드", "안드로이드패드", "PC", "기타"];
-  const deviceData = deviceLabels.map(k => deviceCounts[k] || 0);
-
-  const ctxDev = document.getElementById('chartDevice');
-  if (ctxDev) {
-    if (deviceChartInstance) deviceChartInstance.destroy();
-    deviceChartInstance = new Chart(ctxDev.getContext('2d'), {
-      type: 'doughnut',
-      data: { 
-        labels: deviceLabels, 
-        datasets: [{ 
-          data: deviceData.some(v => v > 0) ? deviceData : [1, 0, 0, 0, 0, 0], 
-          backgroundColor: ['#f43f5e', '#10b981', '#0284c7', '#8b5cf6', '#f59e0b', '#64748b'] 
-        }] 
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-    });
-  }
-}
-
-function renderAdminLocationStats() {
-  const container = document.getElementById('adminLocationStatsList');
-  if (!container) return;
-  const locMap = JSON.parse(localStorage.getItem('chueok_location_stats') || '{}');
-  const entries = Object.entries(locMap);
-
-  if (entries.length === 0) {
-    container.innerHTML = `<p class="text-slate-400 text-center py-4">수집된 지역 통계가 없습니다.</p>`;
-    return;
-  }
-
-  entries.sort((a, b) => b[1] - a[1]);
-  container.innerHTML = entries.map(([loc, count]) => `
-    <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
-      <span class="font-bold text-slate-700 flex items-center"><i data-lucide="map-pin" class="w-3 h-3 text-rose-500 mr-1"></i>${loc}</span>
-      <span class="font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">${count}회</span>
-    </div>
-  `).join('');
-  if (window.lucide) lucide.createIcons();
-}
-
-function renderAdminNoticeManageList() {
-  const listEl = document.getElementById('adminNoticeManageList');
-  if (!listEl) return;
-  const notices = getStoredNotices();
-  listEl.innerHTML = notices.map(n => `
-    <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-      <div>
-        <span class="font-black text-theme text-[10px] mr-1">[${n.version || APP_VERSION}]</span>
-        <span class="font-bold text-slate-800">${n.content}</span>
-        <p class="text-[9px] text-slate-400 mt-0.5">${n.date}</p>
-      </div>
-      <button onclick="deleteNotice('${n.id}')" class="text-[10px] text-rose-600 underline font-bold ml-2 shrink-0">삭제</button>
-    </div>
-  `).join('');
-}
-
-async function writeAdminNotice() {
-  const content = prompt("새 공지사항 내용을 입력하세요:");
-  if (!content || !content.trim()) return;
-
-  const newNotice = { 
-    id: Date.now().toString(), 
-    date: getFormattedTodayDate(), 
-    version: APP_VERSION, 
-    content: content.trim() 
-  };
-  let list = getStoredNotices();
-  list.unshift(newNotice);
-  localStorage.setItem('vibe_notices', JSON.stringify(list));
-  renderMainNotices(); 
-  renderAdminNoticeManageList();
-
-  try {
-    await fetch(GOOGLE_DB_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'ADD_NOTICE',
-        content: newNotice.content,
-        version: newNotice.version
-      })
-    });
-  } catch (e) {}
-}
-
-async function deleteNotice(id) {
-  if (!confirm("이 공지를 영구 삭제하시겠습니까?")) return;
-  let list = getStoredNotices().filter(n => String(n.id) !== String(id));
-  localStorage.setItem('vibe_notices', JSON.stringify(list));
-  renderMainNotices(); 
-  renderAdminNoticeManageList();
-
-  try {
-    await fetch(GOOGLE_DB_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'DELETE_NOTICE', id: id })
-    });
-  } catch (e) {}
-}
-
-function getStoredNotices() {
-  const stored = localStorage.getItem('vibe_notices');
-  let list = [];
-  if (stored) { 
-    try { list = JSON.parse(stored); } catch(e) { list = []; } 
-  }
-  if (!list || list.length === 0) {
-    list = [{ 
-      id: 'v17_3_init', 
-      date: getFormattedTodayDate(), 
-      version: APP_VERSION, 
-      content: 'v17.3 Pro: 4·5·6컷 가변 프레임, 포토이스트, 착용 소품 팩 & 15Mbps 무빙 비디오 업데이트 완료!' 
-    }];
-  }
-  return list;
-}
-
-function renderMainNotices() {
-  const container = document.getElementById('noticeListContainer');
-  const area = document.getElementById('mainNoticeArea');
-  if (!container || !area) return;
-  area.classList.remove('hidden');
-  container.innerHTML = `
-    <div class="bg-white/95 border border-rose-100 rounded-xl px-2.5 py-1.5 flex items-center justify-between text-left">
-      <span class="bg-theme text-white text-[9px] font-black px-1.5 py-0.5 rounded shrink-0">v17.3 Pro</span>
-      <p class="text-[11px] font-bold text-slate-800 truncate ml-2">4·5·6컷 가변 프레임, 착용 소품 팩 & 포토이스트 업데이트!</p>
-    </div>
-  `;
-}
-
-function detectCurrentDevice() {
-  const ua = navigator.userAgent;
-  if (/iPhone/i.test(ua)) return "아이폰";
-  if (/iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return "아이패드";
-  if (/Android/i.test(ua)) {
-    if (/Mobile/i.test(ua)) return "안드로이드폰";
-    return "안드로이드패드";
-  }
-  if (/Macintosh|Mac OS X|Windows|Linux|CrOS/i.test(ua)) return "PC";
-  return "기타";
-}
-
-async function collectDeviceTelemetry() {
-  const ua = navigator.userAgent;
-  const deviceType = detectCurrentDevice();
-
-  let os = "기타 OS";
-  if (/iPhone|iPad|iPod/i.test(ua)) os = "iOS";
-  else if (/Android/i.test(ua)) os = "Android";
-  else if (/Windows/i.test(ua)) os = "Windows";
-  else if (/Macintosh|Mac OS X/i.test(ua)) os = "macOS";
-
-  let browser = "기타 브라우저";
-  if (/KAKAOTALK/i.test(ua)) browser = "카카오톡 인앱";
-  else if (/Instagram/i.test(ua)) browser = "인스타그램 인앱";
-  else if (/NAVER/i.test(ua)) browser = "네이버 인앱";
-  else if (/Whale/i.test(ua)) browser = "네이버 웨일";
-  else if (/Chrome/i.test(ua)) browser = "Chrome";
-  else if (/Safari/i.test(ua)) browser = "Safari";
-
-  const screenRes = `${window.screen.width} x ${window.screen.height}`;
-  const viewportRes = `${window.innerWidth} x ${window.innerHeight}`;
-
-  return {
-    device: deviceType,
-    os: os,
-    browser: browser,
-    screen: screenRes,
-    viewport: viewportRes,
-    referrer: document.referrer || "직접 접속"
-  };
-}
-
-// ========================================================
-// 19. 화면 전환 & 라이프사이클 관리
-// ========================================================
-function showScreen(id) {
-  const screenIds = ['screenHome', 'screenBoard', 'screenLiveShoot', 'screenPick', 'screenEdit', 'screenResult'];
-  screenIds.forEach(s => {
-    const el = document.getElementById(s);
-    if (el) { 
-      if (s === id) { 
-        el.classList.remove('hidden'); 
-        el.style.removeProperty('display');
-        el.style.setProperty('display', 'flex', 'important');
-      } else { 
-        el.classList.add('hidden'); 
-        el.style.setProperty('display', 'none', 'important');
-      } 
-    }
-  });
-  try { if (window.lucide) lucide.createIcons(); } catch (e) {}
-  if (id === 'screenBoard') { renderBoard(); fetchCloudBoardPosts(); }
-  else if (id === 'screenHome') { checkPreviousSession(); renderMainNotices(); updateUserHeaderUI(); }
-  else if (id === 'screenLiveShoot') { setTimeout(checkDeviceOrientation, 200); }
-}
-
-function cancelSession() { stopCameraAndAudio(); resetApp(); }
-
-function resetApp() {
-  if (appState.resetInterval) clearInterval(appState.resetInterval); 
-  stopCameraAndAudio();
-  appState.shotImages = []; 
-  appState.selectedImages = []; 
-  initEmptySlots(appState.cutMode || 4);
-  appState.stickers = []; 
-  appState.selectedStickerIdx = -1; 
-  appState.isCurrentFavorite = false;
-  appState.currentPhotoId = null;
-  galleryAccumulator = []; 
-  showScreen('screenHome');
-}
-
-function startAutoReset() {
-  if (appState.resetInterval) clearInterval(appState.resetInterval);
-  let sec = 120; 
-  const rText = document.getElementById('resetTimerText'); 
-  if (rText) rText.textContent = `${sec}초`;
-  appState.resetInterval = setInterval(() => { 
-    sec--; 
-    if (rText) rText.textContent = `${sec}초`; 
-    if (sec <= 0) { clearInterval(appState.resetInterval); resetApp(); } 
-  }, 1000);
-}
-
-function saveSessionStateToStorage() {
-  try {
-    const backupData = {
-      cutMode: appState.cutMode,
-      format: appState.selectedFormat,
-      layout: appState.layout,
-      frameStyle: appState.frameStyle,
-      frameColor: appState.frameColor,
-      frameThickness: appState.frameThickness,
-      activeFilter: appState.activeFilter,
-      filters: appState.filters,
-      typography: appState.typography,
-      stickers: appState.stickers,
-      images: appState.selectedImages.map(img => img ? img.src : null)
-    };
-    sessionStorage.setItem('chueok_active_session', JSON.stringify(backupData));
-    checkPreviousSession();
-  } catch (e) {}
-}
-
-function checkPreviousSession() {
-  const banner = document.getElementById('sessionRestoreBanner');
-  if (!banner) return;
-  const saved = sessionStorage.getItem('chueok_active_session');
-  if (saved) banner.classList.remove('hidden');
-  else banner.classList.add('hidden');
-}
-
-function restorePreviousSession() {
-  const saved = sessionStorage.getItem('chueok_active_session');
-  if (!saved) return;
-  try {
-    const data = JSON.parse(saved);
-    appState.cutMode = data.cutMode || 4;
-    appState.selectedFormat = data.format;
-    appState.layout = data.layout;
-    appState.frameStyle = data.frameStyle;
-    appState.frameColor = data.frameColor;
-    appState.frameThickness = data.frameThickness;
-    appState.activeFilter = data.activeFilter;
-    appState.filters = data.filters;
-    appState.typography = data.typography;
-    appState.stickers = data.stickers || [];
-
-    const imgPromises = data.images.map(src => new Promise(res => {
-      if (!src) return res(null);
-      const img = new Image();
-      img.onload = () => res(img);
-      img.src = src;
-    }));
-
-    Promise.all(imgPromises).then(imgs => {
-      appState.selectedImages = imgs.filter(Boolean);
-      showScreen('screenEdit');
+    if (e.touches && e.touches.length > 1) return;
+    const coords = getCanvasCoords(e);
+
+    if (appState.dragTarget !== null) {
+      if (e.cancelable) e.preventDefault();
+      const rawX = coords.x - appState.dragStartPos.x;
+      const rawY = coords.y - appState.dragStartPos.y;
+      const snapped = checkMagneticSnap(rawX, rawY);
+
+      const st = appState.stickers[appState.dragTarget];
+      st.x = snapped.x;
+      st.y = snapped.y;
       renderStrip();
-    });
-  } catch (e) {
-    sessionStorage.removeItem('chueok_active_session');
-    checkPreviousSession();
-  }
-}
-
-function changeLayout(mode, btn) {
-  saveStateForUndo(); 
-  appState.layout = mode;
-  document.querySelectorAll('.layout-btn').forEach(b => { 
-    b.className = "layout-btn bg-slate-100 text-slate-700 font-bold py-1.5 rounded-xl text-xs truncate"; 
-  });
-  if (btn) btn.className = "layout-btn bg-theme text-white font-bold py-1.5 rounded-xl text-xs";
-  renderStrip();
-}
-
-function onThicknessChange(val) {
-  appState.frameThickness = parseInt(val);
-  renderStrip();
-}
-
-function changeFrameColor(color, btn) {
-  saveStateForUndo(); 
-  appState.frameColor = color;
-  document.querySelectorAll('.color-btn').forEach(b => b.classList.replace('border-theme', 'border-transparent'));
-  if (btn) btn.classList.replace('border-transparent', 'border-theme');
-  renderStrip();
-}
-
-function handleFilterClick(filterKey, btn) {
-  const isAlreadyActive = (appState.activeFilter === filterKey);
-  if (!isAlreadyActive) {
-    saveStateForUndo(); 
-    appState.activeFilter = filterKey; 
-    const p = FILTER_PRESETS[filterKey] || FILTER_PRESETS.normal; 
-    appState.filters = { ...p };
-    document.querySelectorAll('.filter-btn').forEach(b => { b.className = "filter-btn bg-slate-100 text-slate-700 font-bold py-1 rounded border border-transparent"; });
-    btn.className = "filter-btn bg-slate-900 text-white font-bold py-1 rounded border border-theme";
-    const badge = document.getElementById('filterStateBadge'); if (badge) badge.textContent = p.name;
-    const sb = document.getElementById('sliderBright'); if (sb) sb.value = p.bright;
-    const sc = document.getElementById('sliderContrast'); if (sc) sc.value = p.contrast;
-    const ss = document.getElementById('sliderSaturate'); if (ss) ss.value = p.saturate;
-    renderStrip();
-  } else {
-    const panel = document.getElementById('filterFineTunePanel'); 
-    if (panel) panel.classList.toggle('hidden');
-  }
-}
-
-function onFineTuneSliderChange() {
-  const sb = document.getElementById('sliderBright'); 
-  const sc = document.getElementById('sliderContrast'); 
-  const ss = document.getElementById('sliderSaturate');
-  if (sb) appState.filters.bright = parseInt(sb.value); 
-  if (sc) appState.filters.contrast = parseInt(sc.value); 
-  if (ss) appState.filters.saturate = parseInt(ss.value);
-  renderStrip();
-}
-
-function saveStateForUndo() {
-  const snapshot = JSON.stringify({
-    cutMode: appState.cutMode, stickers: appState.stickers, layout: appState.layout, frameStyle: appState.frameStyle,
-    frameThickness: appState.frameThickness, frameColor: appState.frameColor, activeFilter: appState.activeFilter,
-    filters: appState.filters, typography: appState.typography, showDate: appState.showDate,
-    isCurrentFavorite: appState.isCurrentFavorite, customEngraveText: appState.customEngraveText
-  });
-  historyStack.push(snapshot); 
-  if (historyStack.length > 25) historyStack.shift(); 
-  redoStack = [];
-}
-
-function undo() {
-  if (historyStack.length === 0) return;
-  const currentSnap = JSON.stringify({
-    cutMode: appState.cutMode, stickers: appState.stickers, layout: appState.layout, frameStyle: appState.frameStyle,
-    frameThickness: appState.frameThickness, frameColor: appState.frameColor, activeFilter: appState.activeFilter,
-    filters: appState.filters, typography: appState.typography, showDate: appState.showDate,
-    isCurrentFavorite: appState.isCurrentFavorite, customEngraveText: appState.customEngraveText
-  });
-  redoStack.push(currentSnap);
-  applySnapshot(JSON.parse(historyStack.pop()));
-}
-
-function redo() {
-  if (redoStack.length === 0) return;
-  const currentSnap = JSON.stringify({
-    cutMode: appState.cutMode, stickers: appState.stickers, layout: appState.layout, frameStyle: appState.frameStyle,
-    frameThickness: appState.frameThickness, frameColor: appState.frameColor, activeFilter: appState.activeFilter,
-    filters: appState.filters, typography: appState.typography, showDate: appState.showDate,
-    isCurrentFavorite: appState.isCurrentFavorite, customEngraveText: appState.customEngraveText
-  });
-  historyStack.push(currentSnap);
-  applySnapshot(JSON.parse(redoStack.pop()));
-}
-
-function applySnapshot(snap) {
-  appState.cutMode = snap.cutMode || 4;
-  appState.stickers = snap.stickers || []; 
-  appState.layout = snap.layout; 
-  appState.frameStyle = snap.frameStyle;
-  appState.frameThickness = snap.frameThickness; 
-  appState.frameColor = snap.frameColor; 
-  appState.activeFilter = snap.activeFilter;
-  appState.filters = snap.filters; 
-  appState.typography = snap.typography;
-  appState.showDate = snap.showDate !== undefined ? snap.showDate : true;
-  appState.isCurrentFavorite = snap.isCurrentFavorite || false;
-  appState.customEngraveText = snap.customEngraveText || '';
-  
-  const dateCheck = document.getElementById('checkShowDate');
-  if (dateCheck) dateCheck.checked = appState.showDate;
-  const engraveInput = document.getElementById('customEngraveInput');
-  if (engraveInput) engraveInput.value = appState.customEngraveText;
-
-  updateFavoriteButtonUI();
-  renderStrip();
-}
-
-function loadSavedTheme() {
-  const saved = localStorage.getItem('chueok_ui_theme') || 'rose';
-  const t = APP_THEMES[saved] || APP_THEMES.rose;
-  document.documentElement.style.setProperty('--theme-color', t.color);
-  document.documentElement.style.setProperty('--theme-primary', t.color);
-  document.documentElement.style.setProperty('--theme-primary-hover', t.hover);
-  document.documentElement.style.setProperty('--theme-color-hover', t.hover);
-  document.documentElement.style.setProperty('--theme-color-light', t.light);
-}
-
-function setTimerSec(sec, btn) { 
-  appState.timerSec = sec; 
-  document.querySelectorAll('.timer-chip').forEach(b => { 
-    b.className = "timer-chip bg-white border border-slate-200 text-slate-700 font-bold px-1.5 py-0.5 rounded text-[10px]"; 
-  }); 
-  if (btn) btn.className = "timer-chip bg-theme text-white font-bold px-1.5 py-0.5 rounded text-[10px] shadow-xs"; 
-}
-
-function initDynamicUI() {
-  const emojis = [
-    '😀','😁','😂','😃','😄','😅','😆','😇','😈','😉','😊','😋','😌','😍','😎',
-    '😏','😐','😑','😒','😓','😔','😕','😖','😗','😘','😙','😚','😛','😜','😝',
-    '😞','😟','😠','😡','😢','😣','😤','😥','😨','😩','😪','😫','😭','😮','🥹',
-    '✌️','💖','🎀','🐱','🐶','🐰','✨','🎂','🌸','🍀','🥳','🧸','🔥','💯','🍿'
-  ];
-  const emojiGrid = document.getElementById('emojiGrid');
-  if (emojiGrid) {
-    emojiGrid.innerHTML = emojis.map(e => `<button onclick="addPropSticker('${e}', 90)" class="p-0.5 hover:bg-slate-200 rounded cursor-pointer active:scale-90 transition">${e}</button>`).join('');
-  }
-
-  const texts = [
-    '추억네컷', 'BEST', 'LOVE', 'YOUTH', 'HAPPY', 'VIBE', 'OUR DAY', 'CHILL', 'SMILE', 'FOREVER',
-    '인생네컷', '오늘의 우리', '완벽한 하루', '행복만땅', '심쿵주의', '찐친바이브', '영원한 청춘', 'LUCKY DAY', 'MEMORIES', 'SO CUTE'
-  ];
-  const textStickerGrid = document.getElementById('textStickerGrid');
-  if (textStickerGrid) {
-    textStickerGrid.innerHTML = texts.map(t => `<button onclick="addTextSticker('${t}')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[10px] rounded border border-slate-300 shrink-0 cursor-pointer active:scale-95 transition">${t}</button>`).join('');
-  }
-
-  const basicColorGrid = document.getElementById('frameColorGridBasic');
-  if (basicColorGrid) {
-    basicColorGrid.innerHTML = PALETTE_COLORS.map(c => `
-      <button onclick="changeFrameColor('${c}', this)" class="color-btn w-4 h-4 rounded-full border border-slate-200 shadow-2xs shrink-0" style="background-color:${c};"></button>
-    `).join('') + `<label class="w-4 h-4 rounded-full bg-white border border-slate-300 flex items-center justify-center cursor-pointer shadow-2xs shrink-0 relative overflow-hidden"><i data-lucide="pipette" class="w-2.5 h-2.5 text-rose-600"></i><input type="color" value="#000000" onchange="changeFrameColor(this.value, null)" class="opacity-0 absolute inset-0 cursor-pointer"></label>`;
-  }
-
-  const simpleColorGrid = document.getElementById('frameColorGridSimple');
-  if (simpleColorGrid) {
-    simpleColorGrid.innerHTML = SIMPLE_PALETTE.map(c => `
-      <button onclick="changeFrameColor('${c}', this)" class="color-btn w-4 h-4 rounded-full border border-slate-200 shadow-2xs shrink-0" style="background-color:${c};"></button>
-    `).join('');
-  }
-
-  const premiumColorGrid = document.getElementById('frameColorGridPremium');
-  if (premiumColorGrid) {
-    premiumColorGrid.innerHTML = ['#000000', '#111111', '#18181B', '#FFFFFF', '#FECDD3', '#BAE6FD', '#EDE9FE'].map(c => `
-      <button onclick="changeFrameColor('${c}', this)" class="color-btn w-4 h-4 rounded-full border border-slate-200 shadow-2xs shrink-0" style="background-color:${c};"></button>
-    `).join('') + `<input type="color" value="#000000" onchange="changeFrameColor(this.value, null)" class="w-4 h-4 rounded-full cursor-pointer p-0 border border-slate-300">`;
-  }
-}
-
-// ========================================================
-// 20. 앱 초기 구동 엔트리포인트 (동적 뷰포트 & 이벤트 리스너)
-// ========================================================
-window.addEventListener('DOMContentLoaded', () => {
-  ['screenLiveShoot', 'screenPick', 'screenEdit', 'screenBoard', 'screenResult', 'videoResultModal', 'galleryCollectModal', 'adminDashboardModal', 'customerBotModal', 'authModal', 'myGalleryModal', 'mainShareModal', 'myProfileModal'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.classList.add('hidden');
-      el.style.setProperty('display', 'none', 'important');
+    } else if (isPanning) {
+      if (e.cancelable) e.preventDefault();
+      canvasPanX = coords.clientX - panStartX;
+      canvasPanY = coords.clientY - panStartY;
+      applyZoomTransform();
     }
-  });
-
-  const home = document.getElementById('screenHome');
-  if (home) {
-    home.classList.remove('hidden');
-    home.style.removeProperty('display');
-    home.style.setProperty('display', 'flex', 'important');
   }
-
-  const badge = document.getElementById('appVersionBadge');
-  if (badge) badge.textContent = APP_VERSION;
-
-  updateDynamicViewportHeight();
-  loadSavedTheme();
-  initDynamicUI();
-  initCanvasInteractions();
-  setupCanvasPinchZoom();
-  initSplitResizer();
-  checkPreviousSession();
-  checkAutoLoginSession();
-  initUserLocationEngine();
-  renderMainNotices();
-  fetchCloudBoardPosts();
-
-  window.addEventListener('resize', () => {
-    updateDynamicViewportHeight();
-    checkDeviceOrientation();
-    if (appState.selectedImages && appState.selectedImages.length > 0) {
-      renderStrip();
-    }
-  });
-  window.addEventListener('orientationchange', () => {
-    setTimeout(() => {
-      updateDynamicViewportHeight();
-      checkDeviceOrientation();
-      if (appState.selectedImages && appState.selectedImages.length > 0) {
-        renderStrip();
-      }
-    }, 150);
-  });
-
-  try { if (window.lucide) lucide.createIcons(); } catch (e) {}
-});
 
   function onPointerUp() {
     if (appState.dragTarget !== null) {
