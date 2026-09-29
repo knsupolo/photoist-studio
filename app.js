@@ -2,18 +2,21 @@
  * 포토이스트 (Photoist) Studio Pro v17.3 Pro [1편 / 전반부]
  * 
  * [탑재 핵심 엔진]
- * 1. 최신 구글 웹앱 배포 URL 연동
- * 2. 뷰포트 고정으로 2x2 세로모드 촬영 시 화면 축소 버그 원천 차단
- * 3. 카메라 회전 오버레이 반투명화 & 우측 상단 닫기(X) 처리
- * 4. 사진 배치(screenPick): 포토이스트 매트블랙(#111111) 통일 & 초기 슬롯 완전 비우기
- * 5. 4컷 / 5컷(화보형: 상2-중1대형-하2) / 6컷(2x3 그리드 & 1x6 스트립) 가변 선택 엔진
- * 6. 4자리 PIN 로그인 완전 삭제 (아이디/비밀번호 단일 체계)
- * 7. 회원가입 유효성: 이름 + 생년월일 6자리 동일인 중복 가입 방지 & 비밀번호 확인 검증
- * 8. 마이페이지 (내 정보): 10종 앱 전체 UI 테마 선택기 탑재
+ * 1. 최신 구글 웹앱 배포 URL 연동 및 시스템 전역 상태 관리
+ * 2. 아이패드(iPad 4:3) 및 모바일 뷰포트 높이(--app-vh) 동적 보정
+ * 3. 카메라 회전 오버레이 반투명화(카메라 비침 유지) & 우측 상단 닫기(X)
+ * 4. 2x2 세로모드 촬영 시작 시 화면 축소 버그 원천 해결 (뷰포트 fixed 및 뷰파인더 고정)
+ * 5. 사진 배치(screenPick) 화면: 포토이스트 매트블랙(#111111) 통일 & 초기 슬롯 완전 비우기
+ * 6. 가로 촬영 모드(1x4, 1x5, 1x6 세로 롱 스트립) 1:1 종횡비 프리뷰 동기화
+ * 7. 4컷 / 5컷(상2-중1대형-하2 화보형) / 6컷(2x3 그리드 & 1x6 스트립) 가변 선택 엔진
+ * 8. 4자리 PIN 로그인 완전 삭제 (아이디/비밀번호 단일 체계 간소화)
+ * 9. 회원가입 유효성: 이름 + 생년월일 6자리(YYMMDD) 동일인 중복 가입 방지 & 비밀번호 확인 일치 검증
+ * 10. 계정 복구 센터: 아이디 즉시 확인(FIND_ID) 및 비밀번호 직접 새 비밀번호로 재설정(RESET_PW_DIRECT)
+ * 11. 마이페이지 (내 정보): 10종 앱 전체 UI 테마 선택기 탑재 및 양방향 동기화
  */
 
 const GOOGLE_DB_URL = "https://script.google.com/macros/s/AKfycbw1fjoUYoKQOHNNatPY_8q8X-1ogUV7iaFsIMpYioStlVX1SZK9hYiY32P-bGv7GUVoBw/exec";
-const APP_VERSION = "v17.3 Pro";
+const APP_VERSION = "v17.4 Pro";
 const MAX_GALLERY_SLOTS = 10;
 
 function getFormattedTodayDate() {
@@ -32,6 +35,7 @@ function extractPureBase64(dataUrl) {
   return commaIdx !== -1 ? dataUrl.slice(commaIdx + 1) : dataUrl;
 }
 
+// 24종 포즈 가이드
 const POSE_SUGGESTIONS_24 = [
   { emoji: "🫂", text: "어깨동무하고 다정하게 찰칵!" },
   { emoji: "✌️", text: "다같이 볼 옆에 브이~" },
@@ -59,6 +63,7 @@ const POSE_SUGGESTIONS_24 = [
   { emoji: "🎉", text: "마지막 컷! 가장 행복한 표정으로!" }
 ];
 
+// 15종 감성 필터 프리셋
 const FILTER_PRESETS = {
   normal:       { bright: 100, contrast: 100, saturate: 100, name: '원본' },
   harublue:     { bright: 110, contrast: 105, saturate: 105, name: '하루블루' },
@@ -77,10 +82,12 @@ const FILTER_PRESETS = {
   pink:         { bright: 112, contrast: 108, saturate: 120, name: '로맨틱' }
 };
 
-const PALETTE_COLORS = [
-  '#000000', '#111827', '#FFFFFF', '#E2E8F0', '#FECDD3', 
-  '#FFEDD5', '#FEF9C3', '#D1FAE5', '#BAE6FD', '#EDE9FE', 
-  '#881337', '#1E1B4B', '#064E3B'
+// 24종 확장 프레임 컬러 팔레트
+const EXTENDED_PALETTE_COLORS = [
+  '#000000', '#111111', '#1E293B', '#64748B', '#E2E8F0', '#FFFFFF',
+  '#1E1B4B', '#0F172A', '#064E3B', '#451A03', '#881337', '#78350F',
+  '#FECDD3', '#BAE6FD', '#D1FAE5', '#FEF9C3', '#EDE9FE', '#FFEDD5',
+  '#F43F5E', '#0284C7', '#059669', '#F97316', '#EAB308', '#9333EA'
 ];
 
 const SIMPLE_PALETTE = ['#000000', '#18181B', '#FFFFFF', '#F4F4F5', '#E4E4E7', '#FEF3C7', '#E0F2FE'];
@@ -117,21 +124,29 @@ let appState = {
   viewfinderRatio: 'full',
   currentShotIndex: 0,
   
-  cutMode: 4,
+  cutMode: 4, // 4 | 5 | 6
   shotImages: [],
   selectedImages: [],
   selectedIndices: [null, null, null, null],
   activeSlotIndex: 0,
+  
+  // 비디오 레코딩 버퍼
   shotVideoBlobs: [],
   currentMediaRecorder: null,
   currentShotVideoChunks: [],
+  fullSessionVideoChunks: [],
+  fullSessionMediaRecorder: null,
+  fullSessionVideoBlob: null,
 
   themeCategory: 'basic',
   frameStyle: 'middle',
   frameColor: '#000000',
   frameThickness: 60,
   layout: 'strip',
-  customEngraveText: '',
+  
+  // 1:1 개별 각인 텍스트 배열 및 글꼴
+  slotEngraveTexts: ["", "", "", "", "", ""],
+  engraveFontFamily: 'Playfair Display',
 
   activeFilter: 'normal',
   filters: { bright: 100, contrast: 100, saturate: 100 },
@@ -304,7 +319,7 @@ async function sendVisitTelemetry() {
 }
 
 // ========================================================
-// 3. 회원 인증 (PIN 삭제, 이름+생년월일 중복 검증)
+// 3. 회원 인증 (PIN 삭제, 이름+생년월일 중복 검증, 계정 복구 분리)
 // ========================================================
 function openAuthModal(tab = 'login') {
   const modal = document.getElementById('authModal');
@@ -327,21 +342,26 @@ function closeAuthModal() {
 function switchAuthTab(tab) {
   const loginForm = document.getElementById('authFormLogin');
   const regForm = document.getElementById('authFormRegister');
-  const findForm = document.getElementById('authFormFind');
+  const findIdForm = document.getElementById('authFormFindId');
+  const resetPwForm = document.getElementById('authFormResetPw');
+  
   const tabLogin = document.getElementById('tabModalLogin');
   const tabReg = document.getElementById('tabModalRegister');
-  const tabFind = document.getElementById('tabModalFind');
+  const tabFindId = document.getElementById('tabModalFindId');
+  const tabResetPw = document.getElementById('tabModalResetPw');
 
   if (loginForm) loginForm.classList.add('hidden');
   if (regForm) regForm.classList.add('hidden');
-  if (findForm) findForm.classList.add('hidden');
+  if (findIdForm) findIdForm.classList.add('hidden');
+  if (resetPwForm) resetPwForm.classList.add('hidden');
 
-  const inactiveClass = "px-3 py-1 rounded-lg text-slate-500 hover:text-slate-900";
-  const activeClass = "px-3 py-1 rounded-lg bg-white text-slate-900 shadow-xs font-black";
+  const inactiveClass = "px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900";
+  const activeClass = "px-2.5 py-1 rounded-lg bg-white text-slate-900 shadow-xs font-black";
 
   if (tabLogin) tabLogin.className = inactiveClass;
   if (tabReg) tabReg.className = inactiveClass;
-  if (tabFind) tabFind.className = inactiveClass;
+  if (tabFindId) tabFindId.className = inactiveClass;
+  if (tabResetPw) tabResetPw.className = inactiveClass;
 
   if (tab === 'login') {
     if (loginForm) loginForm.classList.remove('hidden');
@@ -349,9 +369,12 @@ function switchAuthTab(tab) {
   } else if (tab === 'register') {
     if (regForm) regForm.classList.remove('hidden');
     if (tabReg) tabReg.className = activeClass;
-  } else if (tab === 'find') {
-    if (findForm) findForm.classList.remove('hidden');
-    if (tabFind) tabFind.className = activeClass;
+  } else if (tab === 'find_id') {
+    if (findIdForm) findIdForm.classList.remove('hidden');
+    if (tabFindId) tabFindId.className = activeClass;
+  } else if (tab === 'reset_pw') {
+    if (resetPwForm) resetPwForm.classList.remove('hidden');
+    if (tabResetPw) tabResetPw.className = activeClass;
   }
 }
 
@@ -382,16 +405,18 @@ async function checkUserIdDuplicate() {
   }
 }
 
+// 🌟 회원가입 처리 (비밀번호 확인 + 이름 + 생년월일 6자리 중복 차단)
 async function processRegister() {
   const name = (document.getElementById('regUserName').value || "").trim();
   const dob = (document.getElementById('regUserDob').value || "").trim();
+  const gender = (document.getElementById('regUserGender').value || "M");
   const id = (document.getElementById('regUserId').value || "").trim().toLowerCase();
   const pw = document.getElementById('regUserPw').value;
   const pwConfirm = document.getElementById('regUserPwConfirm').value;
   const email = (document.getElementById('regUserEmail').value || "").trim().toLowerCase();
 
-  if (!name || name.length < 2) { alert("이름을 2자 이상 입력해주세요."); return; }
-  if (!dob || dob.length !== 6 || isNaN(dob)) { alert("생년월일은 앞자리 6자리 숫자(예: 980521)로 입력해주세요."); return; }
+  if (!name || name.length < 2) { alert("이름(실명)을 2자 이상 입력해주세요."); return; }
+  if (!dob || dob.length !== 6 || isNaN(dob)) { alert("생년월일은 6자리 숫자(YYMMDD)로 입력해주세요."); return; }
   if (!id || id.length < 4 || id.length > 12) { alert("아이디는 4~12자리 영문 또는 숫자여야 합니다."); return; }
   if (!pw || pw.length < 6 || !/(?=.*[A-Za-z])(?=.*\d)/.test(pw)) { alert("비밀번호는 6자리 이상 영문과 숫자를 혼합해야 합니다."); return; }
   if (pw !== pwConfirm) { alert("비밀번호와 비밀번호 확인이 일치하지 않습니다."); return; }
@@ -401,11 +426,11 @@ async function processRegister() {
     const res = await fetch(GOOGLE_DB_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'REGISTER', name: name, userId: id, userPw: pw, dob: dob, email: email })
+      body: JSON.stringify({ action: 'REGISTER', name: name, userId: id, userPw: pw, dob: dob, gender: gender, email: email })
     });
     const data = await res.json();
     if (data.success) {
-      alert(`🎉 회원가입이 완료되었습니다!\n환영합니다, ${name}님. 로그인 후 이용해 주세요.`);
+      alert(`🎉 회원가입이 완료되었습니다!\n환영합니다, ${name}님. 로그인 후 포토이스트를 이용해 주세요.`);
       switchAuthTab('login');
       const loginIdInput = document.getElementById('loginUserId');
       if (loginIdInput) loginIdInput.value = id;
@@ -417,6 +442,7 @@ async function processRegister() {
   }
 }
 
+// 🌟 로그인 처리 (knsupolo 마스터 직통 승인)
 async function processLogin() {
   const idInput = document.getElementById('loginUserId');
   const pwInput = document.getElementById('loginUserPw');
@@ -427,9 +453,10 @@ async function processLogin() {
   if (id === 'knsupolo' && pw === '12345678') {
     appState.isAdmin = true;
     const adminUser = {
-      name: "관리자",
+      name: "최고관리자",
       userId: 'knsupolo',
       dob: '830413',
+      gender: 'M',
       email: 'admin@chueok.com',
       isAdmin: true,
       totalShots: 999
@@ -451,7 +478,7 @@ async function processLogin() {
     if (data.success) {
       applyUserLoginSuccess(data.user, data.sessionToken);
       closeAuthModal();
-      alert(`환영합니다, ${data.user.name || data.user.userId}님! 프리미엄 혜택이 활성화되었습니다. 💖`);
+      alert(`환영합니다, ${data.user.name || data.user.userId}님! 포토이스트 멤버십이 활성화되었습니다. 💖`);
       loadUserSavedTheme();
     } else {
       alert(data.message || "아이디 또는 비밀번호가 일치하지 않습니다.");
@@ -527,10 +554,11 @@ function processLogout() {
   alert("정상적으로 로그아웃되었습니다.");
 }
 
-async function processFindAccount() {
-  const name = (document.getElementById('findUserName').value || "").trim();
-  const dob = (document.getElementById('findUserDob').value || "").trim();
-  const email = (document.getElementById('findUserEmail').value || "").trim().toLowerCase();
+// 🌟 [인증 3-A] 아이디 찾기
+async function processFindId() {
+  const name = (document.getElementById('findIdName').value || "").trim();
+  const dob = (document.getElementById('findIdDob').value || "").trim();
+  const email = (document.getElementById('findIdEmail').value || "").trim().toLowerCase();
 
   if (!name || !dob || !email) {
     alert("이름, 생년월일 6자리, 이메일을 모두 입력해주세요.");
@@ -541,13 +569,64 @@ async function processFindAccount() {
     const res = await fetch(GOOGLE_DB_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'FIND_ACCOUNT', name: name, dob: dob, email: email })
+      body: JSON.stringify({ action: 'FIND_ID', name: name, dob: dob, email: email })
     });
     const data = await res.json();
-    alert(data.message || (data.success ? "계정 정보가 발송되었습니다!" : "일치하는 계정을 찾을 수 없습니다."));
-    if (data.success) switchAuthTab('login');
+    alert(data.message || (data.success ? `회원님의 아이디는 [${data.userId}] 입니다.` : "일치하는 계정을 찾을 수 없습니다."));
+    if (data.success) {
+      switchAuthTab('login');
+      const loginIdInput = document.getElementById('loginUserId');
+      if (loginIdInput) loginIdInput.value = data.userId;
+    }
   } catch (e) {
-    alert("계정 찾기 통신 중 오류가 발생했습니다.");
+    alert("아이디 찾기 통신 중 오류가 발생했습니다.");
+  }
+}
+
+// 🌟 [인증 3-B] 비밀번호 직접 재설정 (임시비번 메일 대체)
+async function processResetPasswordDirect() {
+  const userId = (document.getElementById('resetPwUserId').value || "").trim().toLowerCase();
+  const name = (document.getElementById('resetPwName').value || "").trim();
+  const dob = (document.getElementById('resetPwDob').value || "").trim();
+  const email = (document.getElementById('resetPwEmail').value || "").trim().toLowerCase();
+  const newPw = document.getElementById('resetPwNew').value;
+  const newPwConfirm = document.getElementById('resetPwNewConfirm').value;
+
+  if (!userId || !name || !dob || !email || !newPw) {
+    alert("모든 항목을 입력해주세요.");
+    return;
+  }
+  if (newPw.length < 6 || !/(?=.*[A-Za-z])(?=.*\d)/.test(newPw)) {
+    alert("새 비밀번호는 6자리 이상 영문과 숫자를 혼합해야 합니다.");
+    return;
+  }
+  if (newPw !== newPwConfirm) {
+    alert("새 비밀번호와 비밀번호 확인 입력값이 일치하지 않습니다.");
+    return;
+  }
+
+  try {
+    const res = await fetch(GOOGLE_DB_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ 
+        action: 'RESET_PW_DIRECT', 
+        userId: userId, 
+        name: name, 
+        dob: dob, 
+        email: email, 
+        newPw: newPw 
+      })
+    });
+    const data = await res.json();
+    alert(data.message || (data.success ? "비밀번호가 성공적으로 변경되었습니다!" : "비밀번호 변경 실패"));
+    if (data.success) {
+      switchAuthTab('login');
+      const loginIdInput = document.getElementById('loginUserId');
+      if (loginIdInput) loginIdInput.value = userId;
+    }
+  } catch (e) {
+    alert("비밀번호 재설정 통신 중 오류가 발생했습니다.");
   }
 }
 
@@ -690,7 +769,7 @@ function copyWebAppShareUrl() {
 }
 
 // ========================================================
-// 6. 마이 갤러리 아카이브 제어
+// 6. 마이 갤러리 아카이브 제어 (무제한 찜 보관함)
 // ========================================================
 async function openMyGalleryModal() {
   const modal = document.getElementById('myGalleryModal');
@@ -703,7 +782,11 @@ async function openMyGalleryModal() {
   if (window.lucide) lucide.createIcons();
 
   const localArchive = JSON.parse(localStorage.getItem('chueok_local_gallery') || '[]');
-  cachedUserGalleryPhotos = localArchive;
+  const localFavVault = JSON.parse(localStorage.getItem('photoist_favorite_vault') || '[]');
+  
+  // 병합 캐시 (중복 제거)
+  const combined = [...localFavVault, ...localArchive.filter(p => !localFavVault.some(f => f.id === p.id))];
+  cachedUserGalleryPhotos = combined;
   renderFilteredGalleryGrid();
 
   if (appState.isRegisteredUser && appState.currentUser) {
@@ -775,7 +858,7 @@ function renderFilteredGalleryGrid() {
               <button onclick="togglePhotoFavoriteStatus('${p.id}')" class="p-1 rounded-lg border text-xs active:scale-90 ${p.isFavorite ? 'bg-amber-50 border-amber-300 text-amber-500' : 'bg-white border-slate-200 text-slate-400'}" title="찜 토글">
                 ★
               </button>
-              <a href="${p.fileUrl}" target="_blank" download="photo.png" class="p-1 bg-white border border-slate-200 rounded-lg text-slate-700 hover:text-theme active:scale-90" title="보기/다운">
+              <a href="${p.fileUrl}" target="_blank" download="photoist_photo.png" class="p-1 bg-white border border-slate-200 rounded-lg text-slate-700 hover:text-theme active:scale-90" title="보기/다운">
                 <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
               </a>
               <button onclick="deleteGalleryPhotoItem('${p.id}')" class="p-1 bg-rose-50 border border-rose-200 rounded-lg text-rose-600 active:scale-90" title="삭제">
@@ -792,13 +875,19 @@ function renderFilteredGalleryGrid() {
 
 async function togglePhotoFavoriteStatus(photoId) {
   let localArchive = JSON.parse(localStorage.getItem('chueok_local_gallery') || '[]');
-  const localTarget = localArchive.find(p => p.id === photoId);
-  if (localTarget) {
-    localTarget.isFavorite = !localTarget.isFavorite;
-    localStorage.setItem('chueok_local_gallery', JSON.stringify(localArchive));
+  let favVault = JSON.parse(localStorage.getItem('photoist_favorite_vault') || '[]');
+  
+  const target = cachedUserGalleryPhotos.find(p => p.id === photoId);
+  if (target) {
+    target.isFavorite = !target.isFavorite;
+    if (target.isFavorite) {
+      if (!favVault.some(f => f.id === target.id)) favVault.unshift(target);
+    } else {
+      favVault = favVault.filter(f => f.id !== target.id);
+    }
   }
-  const cachedTarget = cachedUserGalleryPhotos.find(p => p.id === photoId);
-  if (cachedTarget) cachedTarget.isFavorite = !cachedTarget.isFavorite;
+
+  localStorage.setItem('photoist_favorite_vault', JSON.stringify(favVault));
   renderFilteredGalleryGrid();
 
   if (appState.isRegisteredUser && appState.currentUser) {
@@ -814,9 +903,15 @@ async function togglePhotoFavoriteStatus(photoId) {
 
 async function deleteGalleryPhotoItem(photoId) {
   if (!confirm("이 사진을 보관함에서 영구 삭제하시겠습니까?")) return;
+  
   let localArchive = JSON.parse(localStorage.getItem('chueok_local_gallery') || '[]');
+  let favVault = JSON.parse(localStorage.getItem('photoist_favorite_vault') || '[]');
+
   localArchive = localArchive.filter(p => p.id !== photoId);
+  favVault = favVault.filter(p => p.id !== photoId);
+
   localStorage.setItem('chueok_local_gallery', JSON.stringify(localArchive));
+  localStorage.setItem('photoist_favorite_vault', JSON.stringify(favVault));
 
   cachedUserGalleryPhotos = cachedUserGalleryPhotos.filter(p => p.id !== photoId);
   renderFilteredGalleryGrid();
@@ -861,7 +956,7 @@ function checkDeviceOrientation() {
     if (isPortraitDevice) {
       overlay.classList.remove('hidden');
       if (title) title.textContent = "카메라를 가로로 돌려주세요!";
-      if (desc) desc.textContent = "1×4 스트립 규격은 가로 파지 전용입니다. 기기를 가로로 회전하시면 카운트다운이 재개됩니다.";
+      if (desc) desc.textContent = "세로 스트립형 규격은 가로 파지 전용입니다. 기기를 가로로 회전하시면 카운트다운이 재개됩니다.";
       if (icon) icon.className = "w-8 h-8 text-theme rotate-90";
       pauseCountdown();
     } else {
@@ -891,7 +986,7 @@ function resumeCountdown() {
 }
 
 // ========================================================
-// 8. 🌟 카메라 대기실 (2x2 풀화면 축소 버그 완벽 수정)
+// 8. 카메라 대기실 (아이패드 4:3 뷰포트 고정 & 축소 방지)
 // ========================================================
 function startSession(format) {
   appState.selectedFormat = format || 'strip';
@@ -906,9 +1001,9 @@ function startSession(format) {
   initEmptySlots(appState.cutMode || 4);
 
   const liveBadge = document.getElementById('liveFormatBadge');
-  if (liveBadge) liveBadge.textContent = (format === 'strip') ? "1×4 스트립 (가로)" : "2×2 엽서형 (세로)";
+  if (liveBadge) liveBadge.textContent = (format === 'strip') ? "세로 스트립형 (가로모드)" : "2×2 엽서형 (세로모드)";
   const editBadge = document.getElementById('editorFormatBadge');
-  if (editBadge) editBadge.textContent = (format === 'strip') ? "1×4 스트립" : "2×2 엽서형";
+  if (editBadge) editBadge.textContent = (format === 'strip') ? "세로 스트립형" : "2×2 엽서형";
   const progressBadge = document.getElementById('liveProgressBadge');
   if (progressBadge) progressBadge.textContent = "구도 대기실";
 
@@ -1011,7 +1106,7 @@ function setViewfinderRatio(ratio, btn) {
 }
 
 // ========================================================
-// 9. 6컷 연속 촬영 (풀화면 고정 & 축소 방지)
+// 9. 6컷 연속 촬영 파이프라인 (전 과정 3배속 타임랩스 백그라운드 녹화 탑재)
 // ========================================================
 function startActualCountdownSession() {
   playBeep(900);
@@ -1037,13 +1132,46 @@ function startActualCountdownSession() {
     } 
   }
 
+  // 🌟 전 과정 3배속 타임랩스 백그라운드 녹화 시작
+  startFullSessionTimelapseRecording();
+
   runContinuousLiveShoot(0);
+}
+
+function startFullSessionTimelapseRecording() {
+  if (!appState.stream) return;
+  appState.fullSessionVideoChunks = [];
+  try {
+    appState.fullSessionMediaRecorder = new MediaRecorder(appState.stream, {
+      mimeType: 'video/webm',
+      videoBitsPerSecond: 15000000
+    });
+  } catch (e) {
+    try {
+      appState.fullSessionMediaRecorder = new MediaRecorder(appState.stream);
+    } catch (e2) {
+      appState.fullSessionMediaRecorder = null;
+    }
+  }
+
+  if (appState.fullSessionMediaRecorder) {
+    appState.fullSessionMediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) appState.fullSessionVideoChunks.push(e.data);
+    };
+    appState.fullSessionMediaRecorder.start();
+  }
 }
 
 function runContinuousLiveShoot(shotIndex) {
   appState.currentShotIndex = shotIndex;
   if (shotIndex >= 6) { 
     stopCameraAndAudio(); 
+    if (appState.fullSessionMediaRecorder && appState.fullSessionMediaRecorder.state !== 'inactive') {
+      appState.fullSessionMediaRecorder.onstop = () => {
+        appState.fullSessionVideoBlob = new Blob(appState.fullSessionVideoChunks, { type: 'video/webm' });
+      };
+      appState.fullSessionMediaRecorder.stop();
+    }
     setTimeout(() => { renderPickScreen(); }, 400); 
     return; 
   }
@@ -1191,7 +1319,7 @@ function stopCameraAndAudio() {
 }
 
 // ========================================================
-// 10. 🌟 사진 선택 (포토이스트 매트블랙 통일, 초기 빈 슬롯, 4·5·6컷)
+// 10. 사진 선택 (포토이스트 매트블랙 통일, 스트립 1:1 프리뷰, 초기 빈 슬롯)
 // ========================================================
 function initEmptySlots(cuts) {
   appState.cutMode = cuts;
@@ -1250,6 +1378,7 @@ function returnToPickScreen() {
   renderPickScreen();
 }
 
+// 🌟 [요구사항 3] 가로 촬영 모드 1:1 스트립 프리뷰 & 세로 촬영 모드 2x2 엽서형 동기화
 function buildPickMiniPreviewStructure() {
   const container = document.getElementById('pickMiniFramePreview');
   if (!container) return;
@@ -1260,8 +1389,9 @@ function buildPickMiniPreviewStructure() {
 
   let slotsHtml = "";
 
-  if (cuts === 4) {
-    if (isGrid) {
+  // A. 세로 촬영 모드 (2x2 엽서형)
+  if (isGrid) {
+    if (cuts === 4) {
       container.className = "w-72 sm:w-80 aspect-[2/3] p-3.5 shadow-2xl flex flex-col justify-between border border-slate-700 rounded-2xl transition-all";
       slotsHtml = `
         <div class="grid grid-cols-2 gap-2 flex-1 my-1.5">
@@ -1271,44 +1401,71 @@ function buildPickMiniPreviewStructure() {
           <div onclick="selectSlotForAssignment(3)" data-slot="3" id="previewSlot3" class="drop-slot aspect-[4/5] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-xs font-bold cursor-pointer overflow-hidden rounded-xl">4번 슬롯</div>
         </div>
       `;
-    } else {
-      container.className = "w-56 sm:w-60 p-3 shadow-2xl flex flex-col space-y-1.5 border border-slate-700 rounded-2xl transition-all";
+    } else if (cuts === 5) {
+      container.className = "w-72 sm:w-80 aspect-[2/3] p-3 shadow-2xl flex flex-col justify-between border border-slate-700 rounded-2xl transition-all";
       slotsHtml = `
-        <div class="flex flex-col space-y-1.5 flex-1 my-1">
-          <div onclick="selectSlotForAssignment(0)" data-slot="0" id="previewSlot0" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-theme ring-2 ring-rose-400 flex items-center justify-center text-slate-400 text-xs font-bold cursor-pointer overflow-hidden rounded-xl">1번 슬롯</div>
-          <div onclick="selectSlotForAssignment(1)" data-slot="1" id="previewSlot1" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-xs font-bold cursor-pointer overflow-hidden rounded-xl">2번 슬롯</div>
-          <div onclick="selectSlotForAssignment(2)" data-slot="2" id="previewSlot2" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-xs font-bold cursor-pointer overflow-hidden rounded-xl">3번 슬롯</div>
-          <div onclick="selectSlotForAssignment(3)" data-slot="3" id="previewSlot3" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-xs font-bold cursor-pointer overflow-hidden rounded-xl">4번 슬롯</div>
+        <div class="flex flex-col gap-1.5 flex-1 my-1">
+          <div class="grid grid-cols-2 gap-1.5 h-[30%]">
+            <div onclick="selectSlotForAssignment(0)" data-slot="0" id="previewSlot0" class="drop-slot bg-zinc-900 border-2 border-theme ring-2 ring-rose-400 flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">1번 슬롯</div>
+            <div onclick="selectSlotForAssignment(1)" data-slot="1" id="previewSlot1" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">2번 슬롯</div>
+          </div>
+          <div onclick="selectSlotForAssignment(2)" data-slot="2" id="previewSlot2" class="drop-slot h-[36%] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-300 text-xs font-black cursor-pointer overflow-hidden rounded-lg">★ 3번 메인 대형 슬롯</div>
+          <div class="grid grid-cols-2 gap-1.5 h-[30%]">
+            <div onclick="selectSlotForAssignment(3)" data-slot="3" id="previewSlot3" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">4번 슬롯</div>
+            <div onclick="selectSlotForAssignment(4)" data-slot="4" id="previewSlot4" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">5번 슬롯</div>
+          </div>
+        </div>
+      `;
+    } else if (cuts === 6) {
+      container.className = "w-72 sm:w-80 aspect-[2/3] p-3 shadow-2xl flex flex-col justify-between border border-slate-700 rounded-2xl transition-all";
+      slotsHtml = `
+        <div class="grid grid-cols-2 gap-1.5 flex-1 my-1">
+          <div onclick="selectSlotForAssignment(0)" data-slot="0" id="previewSlot0" class="drop-slot bg-zinc-900 border-2 border-theme ring-2 ring-rose-400 flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">1번 슬롯</div>
+          <div onclick="selectSlotForAssignment(1)" data-slot="1" id="previewSlot1" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">2번 슬롯</div>
+          <div onclick="selectSlotForAssignment(2)" data-slot="2" id="previewSlot2" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">3번 슬롯</div>
+          <div onclick="selectSlotForAssignment(3)" data-slot="3" id="previewSlot3" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">4번 슬롯</div>
+          <div onclick="selectSlotForAssignment(4)" data-slot="4" id="previewSlot4" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">5번 슬롯</div>
+          <div onclick="selectSlotForAssignment(5)" data-slot="5" id="previewSlot5" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">6번 슬롯</div>
         </div>
       `;
     }
-  } else if (cuts === 5) {
-    container.className = "w-72 sm:w-80 aspect-[2/3] p-3 shadow-2xl flex flex-col justify-between border border-slate-700 rounded-2xl transition-all";
-    slotsHtml = `
-      <div class="flex flex-col gap-1.5 flex-1 my-1">
-        <div class="grid grid-cols-2 gap-1.5 h-[30%]">
-          <div onclick="selectSlotForAssignment(0)" data-slot="0" id="previewSlot0" class="drop-slot bg-zinc-900 border-2 border-theme ring-2 ring-rose-400 flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">1번 슬롯</div>
-          <div onclick="selectSlotForAssignment(1)" data-slot="1" id="previewSlot1" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">2번 슬롯</div>
+  } 
+  // B. 가로 촬영 모드 (1x4, 1x5, 1x6 세로 롱 스트립 1:1 동기화)
+  else {
+    if (cuts === 4) {
+      container.className = "w-52 aspect-[1/3] p-2.5 shadow-2xl flex flex-col space-y-1.5 border border-slate-700 rounded-2xl transition-all";
+      slotsHtml = `
+        <div class="flex flex-col space-y-1 flex-1 my-1">
+          <div onclick="selectSlotForAssignment(0)" data-slot="0" id="previewSlot0" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-theme ring-2 ring-rose-400 flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">1번 슬롯</div>
+          <div onclick="selectSlotForAssignment(1)" data-slot="1" id="previewSlot1" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">2번 슬롯</div>
+          <div onclick="selectSlotForAssignment(2)" data-slot="2" id="previewSlot2" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">3번 슬롯</div>
+          <div onclick="selectSlotForAssignment(3)" data-slot="3" id="previewSlot3" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">4번 슬롯</div>
         </div>
-        <div onclick="selectSlotForAssignment(2)" data-slot="2" id="previewSlot2" class="drop-slot h-[36%] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-300 text-xs font-black cursor-pointer overflow-hidden rounded-lg">★ 3번 메인 대형 슬롯</div>
-        <div class="grid grid-cols-2 gap-1.5 h-[30%]">
-          <div onclick="selectSlotForAssignment(3)" data-slot="3" id="previewSlot3" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">4번 슬롯</div>
-          <div onclick="selectSlotForAssignment(4)" data-slot="4" id="previewSlot4" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">5번 슬롯</div>
+      `;
+    } else if (cuts === 5) {
+      container.className = "w-48 aspect-[1/3.6] p-2 shadow-2xl flex flex-col space-y-1 border border-slate-700 rounded-2xl transition-all";
+      slotsHtml = `
+        <div class="flex flex-col space-y-1 flex-1 my-0.5">
+          <div onclick="selectSlotForAssignment(0)" data-slot="0" id="previewSlot0" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-theme ring-2 ring-rose-400 flex items-center justify-center text-slate-400 text-[9px] font-bold cursor-pointer overflow-hidden rounded">1번 슬롯</div>
+          <div onclick="selectSlotForAssignment(1)" data-slot="1" id="previewSlot1" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[9px] font-bold cursor-pointer overflow-hidden rounded">2번 슬롯</div>
+          <div onclick="selectSlotForAssignment(2)" data-slot="2" id="previewSlot2" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[9px] font-bold cursor-pointer overflow-hidden rounded">3번 슬롯</div>
+          <div onclick="selectSlotForAssignment(3)" data-slot="3" id="previewSlot3" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[9px] font-bold cursor-pointer overflow-hidden rounded">4번 슬롯</div>
+          <div onclick="selectSlotForAssignment(4)" data-slot="4" id="previewSlot4" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[9px] font-bold cursor-pointer overflow-hidden rounded">5번 슬롯</div>
         </div>
-      </div>
-    `;
-  } else if (cuts === 6) {
-    container.className = "w-72 sm:w-80 aspect-[2/3] p-3 shadow-2xl flex flex-col justify-between border border-slate-700 rounded-2xl transition-all";
-    slotsHtml = `
-      <div class="grid grid-cols-2 gap-1.5 flex-1 my-1">
-        <div onclick="selectSlotForAssignment(0)" data-slot="0" id="previewSlot0" class="drop-slot bg-zinc-900 border-2 border-theme ring-2 ring-rose-400 flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">1번 슬롯</div>
-        <div onclick="selectSlotForAssignment(1)" data-slot="1" id="previewSlot1" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">2번 슬롯</div>
-        <div onclick="selectSlotForAssignment(2)" data-slot="2" id="previewSlot2" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">3번 슬롯</div>
-        <div onclick="selectSlotForAssignment(3)" data-slot="3" id="previewSlot3" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">4번 슬롯</div>
-        <div onclick="selectSlotForAssignment(4)" data-slot="4" id="previewSlot4" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">5번 슬롯</div>
-        <div onclick="selectSlotForAssignment(5)" data-slot="5" id="previewSlot5" class="drop-slot bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[10px] font-bold cursor-pointer overflow-hidden rounded-lg">6번 슬롯</div>
-      </div>
-    `;
+      `;
+    } else if (cuts === 6) {
+      container.className = "w-44 aspect-[1/4.2] p-1.5 shadow-2xl flex flex-col space-y-1 border border-slate-700 rounded-2xl transition-all";
+      slotsHtml = `
+        <div class="flex flex-col space-y-0.5 flex-1 my-0.5">
+          <div onclick="selectSlotForAssignment(0)" data-slot="0" id="previewSlot0" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-theme ring-2 ring-rose-400 flex items-center justify-center text-slate-400 text-[8px] font-bold cursor-pointer overflow-hidden rounded">1번 슬롯</div>
+          <div onclick="selectSlotForAssignment(1)" data-slot="1" id="previewSlot1" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[8px] font-bold cursor-pointer overflow-hidden rounded">2번 슬롯</div>
+          <div onclick="selectSlotForAssignment(2)" data-slot="2" id="previewSlot2" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[8px] font-bold cursor-pointer overflow-hidden rounded">3번 슬롯</div>
+          <div onclick="selectSlotForAssignment(3)" data-slot="3" id="previewSlot3" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[8px] font-bold cursor-pointer overflow-hidden rounded">4번 슬롯</div>
+          <div onclick="selectSlotForAssignment(4)" data-slot="4" id="previewSlot4" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[8px] font-bold cursor-pointer overflow-hidden rounded">5번 슬롯</div>
+          <div onclick="selectSlotForAssignment(5)" data-slot="5" id="previewSlot5" class="drop-slot aspect-[3/2] bg-zinc-900 border-2 border-transparent flex items-center justify-center text-slate-400 text-[8px] font-bold cursor-pointer overflow-hidden rounded">6번 슬롯</div>
+        </div>
+      `;
+    }
   }
 
   container.innerHTML = `
@@ -1507,13 +1664,17 @@ function confirmSelectedFour() {
   }
   showScreen('screenEdit');
 
+  // 슬롯별 개별 각인 입력창 동적 생성
+  renderSlotEngraveInputs();
+
   requestAnimationFrame(() => {
     renderStrip();
   });
 
   const layoutRow = document.getElementById('layoutSelectionRow');
   if (layoutRow) {
-    if (appState.selectedFormat === 'strip' && cuts === 4) layoutRow.classList.remove('hidden');
+    // 🌟 [요구사항 4] 1x4, 1x5, 1x6 세로 스트립형 전체에서 Twin 2줄 인쇄 모드 선택 개방
+    if (appState.selectedFormat === 'strip') layoutRow.classList.remove('hidden');
     else layoutRow.classList.add('hidden');
   }
 
@@ -1530,12 +1691,12 @@ function resetEditorToDefault() {
   appState.typography.fontFamily = 'Pretendard';
   appState.typography.fontColor = (appState.frameColor === '#FFFFFF' || appState.frameColor === '#E2E8F0') ? '#1E293B' : '#FFFFFF';
   appState.typography.fontSize = 54;
-  appState.customEngraveText = '';
+  appState.slotEngraveTexts = ["", "", "", "", "", ""];
+  appState.engraveFontFamily = 'Playfair Display';
 
   const slThick = document.getElementById('sliderThickness'); if (slThick) slThick.value = 60;
   const fineTune = document.getElementById('filterFineTunePanel'); if (fineTune) fineTune.classList.add('hidden');
   const stBar = document.getElementById('stickerControlBar'); if (stBar) stBar.classList.add('hidden');
-  const engraveInput = document.getElementById('customEngraveInput'); if (engraveInput) engraveInput.value = '';
   resetCanvasZoom();
   historyStack = []; 
   redoStack = [];
@@ -1613,8 +1774,9 @@ function cancelGalleryCollect() {
     m.style.setProperty('display', 'none', 'important');
   }
 }
+
 // ========================================================
-// 11. 🌟 테마 컨트롤러 & B-3 측면 각인 툴바
+// 11. 🌟 테마 컨트롤러 & 슬롯별 1:1 측면 각인 툴바
 // ========================================================
 function switchThemeCategory(category) {
   if (category !== 'basic' && (!appState.isRegisteredUser || !appState.currentUser)) {
@@ -1649,6 +1811,7 @@ function switchThemeCategory(category) {
   }
 }
 
+// 1. 기본 테마: 상단 / 중간 / 하단 / 상·하단 / 계단형 (문구 여백 260~320px 대폭 확장)
 function setBasicTextPosition(pos, btn) {
   appState.frameStyle = pos; 
   document.querySelectorAll('.basic-pos-btn').forEach(b => {
@@ -1658,6 +1821,7 @@ function setBasicTextPosition(pos, btn) {
   renderStrip();
 }
 
+// 2. 심플 테마: 미니멀 라인, 폴라로이드 와이드, 인셋 매거진
 function setSimpleOffsetLayout(key, btn) {
   if (!appState.isRegisteredUser) { openAuthModal('login'); return; }
   appState.frameStyle = key; 
@@ -1668,6 +1832,7 @@ function setSimpleOffsetLayout(key, btn) {
   renderStrip();
 }
 
+// 3. 프리미엄 테마: 생일파티, 베이스볼, 포토이스트(photoist)
 function setPremiumSubTheme(key, btn) {
   if (!appState.isRegisteredUser) { openAuthModal('login'); return; }
   appState.frameStyle = key; 
@@ -1678,46 +1843,144 @@ function setPremiumSubTheme(key, btn) {
   renderStrip();
 }
 
-function onCustomEngraveChange(val) {
-  appState.customEngraveText = val;
+// 🌟 [요구사항 5] 슬롯별 1:1 개별 각인 입력창 동적 생성 (N컷 = N개 인풋)
+function renderSlotEngraveInputs() {
+  const container = document.getElementById('sideEngraveInputsContainer');
+  if (!container) return;
+  const cuts = appState.cutMode || 4;
+
+  const defaultPlaceholders = [
+    "1번 옆 각인 (예: MEMORIES)",
+    "2번 옆 각인 (예: OUR DAY)",
+    "3번 옆 각인 (예: FOREVER)",
+    "4번 옆 각인 (예: PHOTOIST)",
+    "5번 옆 각인 (예: SPECIAL)",
+    "6번 옆 각인 (예: WITH YOU)"
+  ];
+
+  container.innerHTML = Array.from({ length: cuts }, (_, i) => `
+    <div class="flex items-center space-x-1.5">
+      <span class="text-[9px] font-bold text-slate-400 w-9 shrink-0">#${i + 1} 각인:</span>
+      <input type="text" placeholder="${defaultPlaceholders[i]}" value="${escapeHtml(appState.slotEngraveTexts[i] || '')}" oninput="onSlotEngraveTextChange(${i}, this.value)" class="flex-1 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs outline-none focus:border-theme">
+    </div>
+  `).join('');
+}
+
+function onSlotEngraveTextChange(index, val) {
+  appState.slotEngraveTexts[index] = val;
+  renderStrip();
+}
+
+// 🌟 [요구사항 4] 측면 세로 각인 전용 폰트 변경
+function onEngraveFontChange(fontName) {
+  appState.engraveFontFamily = fontName;
   renderStrip();
 }
 
 function applyDefaultSideEngrave() {
-  appState.customEngraveText = "Photography      PhotoBooth      PhotoIst      Studio";
-  const input = document.getElementById('customEngraveInput');
-  if (input) input.value = appState.customEngraveText;
+  const defaults = ["MEMORIES", "OUR DAY", "2026.09", "PHOTOIST", "SPECIAL", "WITH YOU"];
+  for (let i = 0; i < 6; i++) {
+    appState.slotEngraveTexts[i] = defaults[i];
+  }
+  renderSlotEngraveInputs();
   renderStrip();
 }
 
 function clearSideEngrave() {
-  appState.customEngraveText = " ";
-  const input = document.getElementById('customEngraveInput');
-  if (input) input.value = "";
-  renderStrip();
-}
-
-function addPropSticker(emoji, size = 100, opacity = 1.0) {
-  saveStateForUndo(); 
-  const canvas = document.getElementById('photoCanvas');
-  const newSticker = { 
-    id: Date.now(), 
-    type: 'emoji', 
-    text: emoji, 
-    x: canvas ? canvas.width / 2 : 600, 
-    y: canvas ? canvas.height / 2 : 1800, 
-    size: size, 
-    rotation: 0,
-    opacity: opacity
-  };
-  appState.stickers.push(newSticker); 
-  appState.selectedStickerIdx = appState.stickers.length - 1;
-  showStickerControls(newSticker); 
+  appState.slotEngraveTexts = ["", "", "", "", "", ""];
+  renderSlotEngraveInputs();
   renderStrip();
 }
 
 // ========================================================
-// 12. 🌟 메인 캔버스 렌더러 (포토이스트 & 하단 각인 삭제)
+// 12. 🌟 실물 고화질 벡터 SVG 소품 팩 & 캔버스 부착형 QR 스티커
+// ========================================================
+const SVG_PROP_TEMPLATES = {
+  headband_ribbon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120"><path d="M30,110 C30,40 170,40 170,110" fill="none" stroke="#FB7185" stroke-width="14" stroke-linecap="round"/><path d="M100,45 C80,20 60,35 85,55 C95,62 100,50 100,45 Z" fill="#F43F5E"/><path d="M100,45 C120,20 140,35 115,55 C105,62 100,50 100,45 Z" fill="#F43F5E"/><circle cx="100" cy="48" r="8" fill="#BE123C"/></svg>`,
+  party_hat: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200"><polygon points="80,25 25,175 135,175" fill="#F59E0B"/><circle cx="80" cy="20" r="14" fill="#F43F5E"/><path d="M38,140 Q80,165 122,140" fill="none" stroke="#3B82F6" stroke-width="10"/><path d="M48,105 Q80,125 112,105" fill="none" stroke="#10B981" stroke-width="10"/><path d="M58,70 Q80,85 102,70" fill="none" stroke="#EC4899" stroke-width="10"/></svg>`,
+  crown_gold: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 130"><polygon points="20,110 35,40 75,75 100,25 125,75 165,40 180,110" fill="#FBBF24" stroke="#D97706" stroke-width="4"/><circle cx="35" cy="35" r="7" fill="#EF4444"/><circle cx="100" cy="20" r="8" fill="#3B82F6"/><circle cx="165" cy="35" r="7" fill="#10B981"/><rect x="25" y="105" width="150" height="12" rx="4" fill="#D97706"/></svg>`,
+  bunny_ears: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180"><ellipse cx="55" cy="85" rx="22" ry="75" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="4" transform="rotate(-15 55 85)"/><ellipse cx="55" cy="85" rx="12" ry="55" fill="#FECDD3" transform="rotate(-15 55 85)"/><ellipse cx="125" cy="85" rx="22" ry="75" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="4" transform="rotate(15 125 85)"/><ellipse cx="125" cy="85" rx="12" ry="55" fill="#FECDD3" transform="rotate(15 125 85)"/></svg>`,
+  cat_whiskers: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><polygon points="100,35 90,20 110,20" fill="#FB7185"/><line x1="80" y1="26" x2="15" y2="18" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/><line x1="80" y1="32" x2="10" y2="34" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/><line x1="80" y1="38" x2="18" y2="50" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/><line x1="120" y1="26" x2="185" y2="18" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/><line x1="120" y1="32" x2="190" y2="34" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/><line x1="120" y1="38" x2="182" y2="50" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/></svg>`,
+  glasses_sunglasses: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 90"><line x1="90" y1="42" x2="130" y2="42" stroke="#0F172A" stroke-width="7"/><path d="M15,42 Q55,20 85,42 Q65,75 25,65 Z" fill="#0F172A"/><path d="M135,42 Q165,20 205,42 Q195,75 145,65 Z" fill="#0F172A"/></svg>`,
+  glasses_geek: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 90"><line x1="95" y1="42" x2="125" y2="42" stroke="#18181B" stroke-width="6"/><rect x="20" y="20" width="75" height="52" rx="14" fill="none" stroke="#18181B" stroke-width="7"/><rect x="125" y="20" width="75" height="52" rx="14" fill="none" stroke="#18181B" stroke-width="7"/></svg>`,
+  heart_tint_pink: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="M60,105 C20,70 5,45 20,25 C35,5 55,20 60,30 C65,20 85,5 100,25 C115,45 100,70 60,105 Z" fill="#F43F5E"/></svg>`,
+  heart_tint_white: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="M60,105 C20,70 5,45 20,25 C35,5 55,20 60,30 C65,20 85,5 100,25 C115,45 100,70 60,105 Z" fill="#FFFFFF"/></svg>`
+};
+
+function addSvgPropSticker(propType, size = 110, opacity = 1.0) {
+  saveStateForUndo();
+  const svgXml = SVG_PROP_TEMPLATES[propType];
+  if (!svgXml) return;
+
+  const blob = new Blob([svgXml], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.getElementById('photoCanvas');
+    const newSticker = {
+      id: Date.now(),
+      type: 'image',
+      imgElement: img,
+      x: canvas ? canvas.width / 2 : 600,
+      y: canvas ? canvas.height / 2 : 1800,
+      size: size,
+      rotation: 0,
+      opacity: opacity
+    };
+    appState.stickers.push(newSticker);
+    appState.selectedStickerIdx = appState.stickers.length - 1;
+    showStickerControls(newSticker);
+    renderStrip();
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+
+// 🌟 [요구사항 5] 사진 다운로드 직결 캔버스 부착형 QR코드 스티커 생성
+function addQrCodeStickerToCanvas() {
+  saveStateForUndo();
+  const tempDiv = document.createElement('div');
+  const downloadTargetUrl = window.location.href.split('?')[0];
+
+  new QRCode(tempDiv, {
+    text: downloadTargetUrl,
+    width: 256,
+    height: 256,
+    correctLevel: QRCode.CorrectLevel.M
+  });
+
+  setTimeout(() => {
+    const qrImg = tempDiv.querySelector('img');
+    const qrCanvas = tempDiv.querySelector('canvas');
+    const dataUri = qrImg && qrImg.src ? qrImg.src : (qrCanvas ? qrCanvas.toDataURL('image/png') : null);
+
+    if (dataUri) {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.getElementById('photoCanvas');
+        const newSticker = {
+          id: Date.now(),
+          type: 'image',
+          isQr: true,
+          imgElement: img,
+          x: canvas ? canvas.width - 120 : 1050,
+          y: canvas ? canvas.height - 130 : 3450,
+          size: 100,
+          rotation: 0,
+          opacity: 1.0
+        };
+        appState.stickers.push(newSticker);
+        appState.selectedStickerIdx = appState.stickers.length - 1;
+        showStickerControls(newSticker);
+        renderStrip();
+      };
+      img.src = dataUri;
+    }
+  }, 120);
+}
+
+// ========================================================
+// 13. 🌟 메인 캔버스 렌더러 (2x2 계단형 스텝 단차 & 슬롯별 1:1 각인)
 // ========================================================
 function renderStrip(isFinalExport = false) {
   const canvas = document.getElementById('photoCanvas'); 
@@ -1740,121 +2003,139 @@ function renderStrip(isFinalExport = false) {
   const pad = appState.frameThickness || 60; 
   const gap = Math.round(pad * 0.45);
   const fStyle = appState.frameStyle;
-  const isDark = (appState.frameColor === '#000000' || appState.frameColor === '#111827' || appState.frameColor === '#18181B' || appState.frameColor === '#111111');
+  const isDark = (appState.frameColor === '#000000' || appState.frameColor === '#111111' || appState.frameColor === '#1E293B' || appState.frameColor === '#18181B');
 
-  if (cuts === 4) {
-    if (layout === 'strip') { canvas.width = 1200; canvas.height = 3600; }
-    else { canvas.width = 1800; canvas.height = 2700; }
-  } else if (cuts === 5) {
-    if (layout === 'strip') { canvas.width = 1200; canvas.height = 4200; }
-    else { canvas.width = 1800; canvas.height = 2700; }
-  } else if (cuts === 6) {
-    if (layout === 'strip') { canvas.width = 1200; canvas.height = 4800; }
-    else { canvas.width = 1800; canvas.height = 2700; }
+  // 규격 및 컷수별 캔버스 해상도 결정
+  if (layout === 'strip') {
+    if (cuts === 4) { canvas.width = 1200; canvas.height = 3600; }
+    else if (cuts === 5) { canvas.width = 1200; canvas.height = 4200; }
+    else if (cuts === 6) { canvas.width = 1200; canvas.height = 4800; }
+  } else {
+    canvas.width = 1800; 
+    canvas.height = 2700;
   }
 
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  if (fStyle === 'birthday') ctx.fillStyle = '#FAF7EE';
-  else ctx.fillStyle = appState.frameColor;
+  // [레이어 1: 프레임 배경색] (🌟 생일파티 테마도 frameColor 100% 정상 반영)
+  ctx.fillStyle = appState.frameColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  if (cuts === 4) {
-    if (layout === 'strip') renderStrip4Slots(ctx, canvas, pad, gap, fStyle);
-    else if (layout === 'twin') renderTwin4Slots(ctx, canvas, pad, gap, fStyle);
-    else renderGrid4Slots(ctx, canvas, pad, gap, fStyle);
-  } else if (cuts === 5) {
-    if (layout === 'strip') renderStrip5Slots(ctx, canvas, pad, gap, fStyle);
-    else renderMagazine5Slots(ctx, canvas, pad, gap, fStyle);
-  } else if (cuts === 6) {
-    if (layout === 'strip') renderStrip6Slots(ctx, canvas, pad, gap, fStyle);
-    else renderGrid6Slots(ctx, canvas, pad, gap, fStyle);
+  // [레이어 2: 컷수별 사진 슬롯 렌더링]
+  let slotCenters = [];
+  if (layout === 'strip') {
+    if (cuts === 4) slotCenters = renderStrip4Slots(ctx, canvas, pad, gap, fStyle);
+    else if (cuts === 5) slotCenters = renderStrip5Slots(ctx, canvas, pad, gap, fStyle);
+    else if (cuts === 6) slotCenters = renderStrip6Slots(ctx, canvas, pad, gap, fStyle);
+  } else if (layout === 'twin') {
+    slotCenters = renderTwinStripSlots(ctx, canvas, pad, gap, cuts);
+  } else {
+    // 엽서형 (2x2 / 5컷 화보형 / 2x3 풀그리드)
+    if (cuts === 4) slotCenters = renderGrid4Slots(ctx, canvas, pad, gap, fStyle);
+    else if (cuts === 5) slotCenters = renderMagazine5Slots(ctx, canvas, pad, gap, fStyle);
+    else if (cuts === 6) slotCenters = renderGrid6Slots(ctx, canvas, pad, gap, fStyle);
   }
 
-  renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout);
+  // [레이어 3: 테마 오버레이 & 🌟 슬롯별 1:1 개별 각인 렌더링]
+  renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout, slotCenters);
+
+  // [레이어 4: 스티커, QR 스티커 & 날짜 오브젝트]
   renderStickersAndMirrors(ctx, canvas, layout);
 }
 
+// 4컷 세로 롱 스트립 레이아웃
 function renderStrip4Slots(ctx, canvas, pad, gap, fStyle) {
   let topH = pad; 
   let bottomH = pad; 
   let bannerH = 0;
 
   if (fStyle === 'top') { topH = 280; bottomH = pad; }
-  else if (fStyle === 'bottom') { topH = pad; bottomH = 300; }
+  else if (fStyle === 'bottom') { topH = pad; bottomH = 320; }
   else if (fStyle === 'middle') { bannerH = 260; }
-  else if (fStyle === 'dual') { topH = 220; bottomH = 240; }
-  else if (fStyle === 'stair') { topH = 160; bottomH = 180; }
+  else if (fStyle === 'dual') { topH = 220; bottomH = 260; }
   else if (fStyle === 'photoist') { topH = 180; bottomH = pad; }
 
   const imgW = canvas.width - (pad * 2);
   const imgH = (canvas.height - topH - bottomH - bannerH - (gap * 3)) / 4;
+  const centers = [];
 
-  if (fStyle === 'middle') {
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[0], pad, pad, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[1], pad, pad + imgH + gap, imgW, imgH);
-    const lowerY = pad + (imgH * 2) + (gap * 2) + bannerH + gap;
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[2], pad, lowerY, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[3], pad, lowerY + imgH + gap, imgW, imgH);
-  } else if (fStyle === 'stair') {
-    for (let i = 0; i < 4; i++) {
-      const offsetX = (i % 2 === 0) ? -35 : 35;
-      const slotW = imgW - 70;
-      const x = (canvas.width - slotW) / 2 + offsetX;
-      const y = topH + (i * (imgH + gap));
-      drawFilteredSlotPhoto(ctx, appState.selectedImages[i], x, y, slotW, imgH);
-    }
-  } else {
-    for (let i = 0; i < 4; i++) {
-      drawFilteredSlotPhoto(ctx, appState.selectedImages[i], pad, topH + (i * (imgH + gap)), imgW, imgH);
-    }
+  for (let i = 0; i < 4; i++) {
+    let y = topH + (i * (imgH + gap));
+    if (fStyle === 'middle' && i >= 2) y += bannerH;
+    drawFilteredSlotPhoto(ctx, appState.selectedImages[i], pad, y, imgW, imgH);
+    centers.push({ x: canvas.width - (pad / 2), y: y + (imgH / 2) });
   }
+  return centers;
 }
 
+// 🌟 2×2 엽서형 그리드 (계단형 스텝 단차 오프셋 정밀 적용)
 function renderGrid4Slots(ctx, canvas, pad, gap, fStyle) {
   let topH = pad; 
   let bottomH = pad; 
   let bannerH = 0;
 
   if (fStyle === 'top') { topH = 260; bottomH = pad; }
-  else if (fStyle === 'bottom') { topH = pad; bottomH = 260; }
+  else if (fStyle === 'bottom') { topH = pad; bottomH = 280; }
   else if (fStyle === 'middle') { bannerH = 200; }
   else if (fStyle === 'dual') { topH = 200; bottomH = 220; }
-  else if (fStyle === 'polaroid_wide') { topH = pad * 0.5; bottomH = 340; }
+  else if (fStyle === 'polaroid_wide') { topH = pad * 0.4; bottomH = 340; }
   else if (fStyle === 'minimal_line') { gap = 2; }
   else if (fStyle === 'photoist') { topH = 180; bottomH = pad; }
 
   const imgW = (canvas.width - (pad * 2) - gap) / 2;
   const imgH = (canvas.height - topH - bottomH - bannerH - gap) / 2;
+  const centers = [];
 
-  if (fStyle === 'middle') {
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[0], pad, pad, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[1], pad + imgW + gap, pad, imgW, imgH);
-    const lowerY = pad + imgH + bannerH;
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[2], pad, lowerY, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[3], pad + imgW + gap, lowerY, imgW, imgH);
-  } else {
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[0], pad, topH, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[1], pad + imgW + gap, topH, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[2], pad, topH + imgH + gap, imgW, imgH);
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[3], pad + imgW + gap, topH + imgH + gap, imgW, imgH);
+  // 🌟 [요구사항 1] 계단형 스텝 오프셋 (지그재그 단차: 1번 -28px, 2번 +28px, 3번 +28px, 4번 -28px)
+  const isStair = (fStyle === 'stair');
+  const stairOffsets = isStair ? [-28, 28, 28, -28] : [0, 0, 0, 0];
+
+  const coords = [
+    { x: pad, y: topH + stairOffsets[0] },
+    { x: pad + imgW + gap, y: topH + stairOffsets[1] },
+    { x: pad, y: topH + imgH + gap + (fStyle === 'middle' ? bannerH : 0) + stairOffsets[2] },
+    { x: pad + imgW + gap, y: topH + imgH + gap + (fStyle === 'middle' ? bannerH : 0) + stairOffsets[3] }
+  ];
+
+  for (let i = 0; i < 4; i++) {
+    // 🌟 심플 테마: 인셋 매거진 그림자 효과
+    if (fStyle === 'inset_mag') {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.35)';
+      ctx.shadowBlur = 18;
+      ctx.shadowOffsetX = 6;
+      ctx.shadowOffsetY = 8;
+      drawFilteredSlotPhoto(ctx, appState.selectedImages[i], coords[i].x, coords[i].y, imgW, imgH);
+      ctx.restore();
+    } else {
+      drawFilteredSlotPhoto(ctx, appState.selectedImages[i], coords[i].x, coords[i].y, imgW, imgH);
+    }
+    centers.push({ x: canvas.width - (pad / 2), y: coords[i].y + (imgH / 2) });
   }
+  return centers;
 }
 
-function renderTwin4Slots(ctx, canvas, pad, gap, fStyle) {
-  const stripW = (canvas.width / 2) - 30;
+// 🌟 1x4, 1x5, 1x6 세로 롱 스트립 전체 Twin 2줄 대칭 레이아웃
+function renderTwinStripSlots(ctx, canvas, pad, gap, cuts) {
+  const stripW = (canvas.width / 2) - 24;
   const padX = pad * 0.65;
   const imgW = stripW - (padX * 2);
   const topH = 160; const bottomH = 200;
-  const imgH = (canvas.height - topH - bottomH - (gap * 3)) / 4;
+  const imgH = (canvas.height - topH - bottomH - (gap * (cuts - 1))) / cuts;
+  const centers = [];
 
-  [15, canvas.width / 2 + 15].forEach(baseX => {
-    for (let i = 0; i < 4; i++) {
-      drawFilteredSlotPhoto(ctx, appState.selectedImages[i], baseX + padX, topH + (i * (imgH + gap)), imgW, imgH);
+  [12, canvas.width / 2 + 12].forEach(baseX => {
+    for (let i = 0; i < cuts; i++) {
+      const y = topH + (i * (imgH + gap));
+      drawFilteredSlotPhoto(ctx, appState.selectedImages[i], baseX + padX, y, imgW, imgH);
+      if (baseX > 20) {
+        centers.push({ x: canvas.width - (padX / 2), y: y + (imgH / 2) });
+      }
     }
   });
 
+  // 중앙 절취선
   ctx.save();
   ctx.strokeStyle = 'rgba(255,255,255,0.45)';
   ctx.lineWidth = 3;
@@ -1865,72 +2146,98 @@ function renderTwin4Slots(ctx, canvas, pad, gap, fStyle) {
   ctx.stroke();
   ctx.font = '28px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('✂️', canvas.width / 2, 90);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('✂️', canvas.width / 2, 80);
   ctx.fillText('✂️', canvas.width / 2, canvas.height / 2);
-  ctx.fillText('✂️', canvas.width / 2, canvas.height - 90);
+  ctx.fillText('✂️', canvas.width / 2, canvas.height - 80);
   ctx.restore();
+
+  return centers;
 }
 
+// 5컷 세로 롱 스트립
+function renderStrip5Slots(ctx, canvas, pad, gap, fStyle) {
+  const topH = 180; const bottomH = 220;
+  const imgW = canvas.width - (pad * 2);
+  const imgH = (canvas.height - topH - bottomH - (gap * 4)) / 5;
+  const centers = [];
+  for (let i = 0; i < 5; i++) {
+    const y = topH + (i * (imgH + gap));
+    drawFilteredSlotPhoto(ctx, appState.selectedImages[i], pad, y, imgW, imgH);
+    centers.push({ x: canvas.width - (pad / 2), y: y + (imgH / 2) });
+  }
+  return centers;
+}
+
+// 5컷 엽서 화보형 레이아웃 (상단 2컷, 가운데 와이드 대형 1컷, 하단 2컷)
 function renderMagazine5Slots(ctx, canvas, pad, gap, fStyle) {
-  const topH = 180;
-  const bottomH = 200;
+  const topH = 180; const bottomH = 200;
   const availH = canvas.height - topH - bottomH - (gap * 2);
   const smallH = availH * 0.28;
   const bigH = availH * 0.44;
   const halfW = (canvas.width - (pad * 2) - gap) / 2;
   const fullW = canvas.width - (pad * 2);
+  const centers = [];
 
+  // 상단 2컷
   drawFilteredSlotPhoto(ctx, appState.selectedImages[0], pad, topH, halfW, smallH);
   drawFilteredSlotPhoto(ctx, appState.selectedImages[1], pad + halfW + gap, topH, halfW, smallH);
+  centers.push({ x: canvas.width - (pad / 2), y: topH + (smallH / 2) });
 
+  // 가운데 메인 와이드 대형 1컷
   const midY = topH + smallH + gap;
   drawFilteredSlotPhoto(ctx, appState.selectedImages[2], pad, midY, fullW, bigH);
+  centers.push({ x: canvas.width - (pad / 2), y: midY + (bigH / 2) });
 
+  // 하단 2컷
   const botY = midY + bigH + gap;
   drawFilteredSlotPhoto(ctx, appState.selectedImages[3], pad, botY, halfW, smallH);
   drawFilteredSlotPhoto(ctx, appState.selectedImages[4], pad + halfW + gap, botY, halfW, smallH);
+  centers.push({ x: canvas.width - (pad / 2), y: botY + (smallH / 2) });
+
+  return centers;
 }
 
-function renderStrip5Slots(ctx, canvas, pad, gap, fStyle) {
+// 6컷 세로 롱 스트립
+function renderStrip6Slots(ctx, canvas, pad, gap, fStyle) {
   const topH = 180; const bottomH = 220;
   const imgW = canvas.width - (pad * 2);
-  const imgH = (canvas.height - topH - bottomH - (gap * 4)) / 5;
-  for (let i = 0; i < 5; i++) {
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[i], pad, topH + (i * (imgH + gap)), imgW, imgH);
+  const imgH = (canvas.height - topH - bottomH - (gap * 5)) / 6;
+  const centers = [];
+  for (let i = 0; i < 6; i++) {
+    const y = topH + (i * (imgH + gap));
+    drawFilteredSlotPhoto(ctx, appState.selectedImages[i], pad, y, imgW, imgH);
+    centers.push({ x: canvas.width - (pad / 2), y: y + (imgH / 2) });
   }
+  return centers;
 }
 
+// 6컷 2×3 엽서 풀 그리드
 function renderGrid6Slots(ctx, canvas, pad, gap, fStyle) {
   const topH = 180; const bottomH = 200;
   const imgW = (canvas.width - (pad * 2) - gap) / 2;
   const imgH = (canvas.height - topH - bottomH - (gap * 2)) / 3;
+  const centers = [];
 
   for (let row = 0; row < 3; row++) {
     const y = topH + (row * (imgH + gap));
     drawFilteredSlotPhoto(ctx, appState.selectedImages[row * 2], pad, y, imgW, imgH);
     drawFilteredSlotPhoto(ctx, appState.selectedImages[row * 2 + 1], pad + imgW + gap, y, imgW, imgH);
+    centers.push({ x: canvas.width - (pad / 2), y: y + (imgH / 2) });
   }
+  return centers;
 }
 
-function renderStrip6Slots(ctx, canvas, pad, gap, fStyle) {
-  const topH = 180; const bottomH = 220;
-  const imgW = canvas.width - (pad * 2);
-  const imgH = (canvas.height - topH - bottomH - (gap * 5)) / 6;
-  for (let i = 0; i < 6; i++) {
-    drawFilteredSlotPhoto(ctx, appState.selectedImages[i], pad, topH + (i * (imgH + gap)), imgW, imgH);
-  }
-}
-
-function renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout) {
+// 🌟 테마별 그래픽 오버레이 & 슬롯별 1:1 개별 각인 렌더러
+function renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout, slotCenters = []) {
   ctx.save();
 
+  // 여백 비례 각인 폰트 크기 계산 (32px ~ 64px)
   const adaptiveFontSize = Math.max(32, Math.min(64, Math.round(pad * 0.65)));
-  const sideEngraveText = (appState.customEngraveText !== undefined && appState.customEngraveText !== "")
-    ? appState.customEngraveText
-    : "Photography      PhotoBooth      PhotoIst      Studio";
-
   const textColor = isDark ? '#FFFFFF' : '#0F172A';
+  const customFont = appState.engraveFontFamily || 'Playfair Display';
 
+  // 1) 포토이스트 (photoist)
   if (fStyle === 'photoist') {
     ctx.fillStyle = textColor;
     ctx.font = "700 58px 'Playfair Display', serif";
@@ -1951,44 +2258,82 @@ function renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout) {
       ctx.fillText("▲", pad / 2, centerY);
     }
   }
+  // 2) 🌟 생일파티 (포토이스트 95px 상단 여백 일치 & 텍스트 가독성 대비 조절)
   else if (fStyle === 'birthday') {
-    ctx.fillStyle = '#E11D48';
-    ctx.font = "900 68px 'Playfair Display', serif";
+    ctx.fillStyle = isDark ? '#FDA4AF' : '#E11D48';
+    ctx.font = "900 64px 'Playfair Display', serif";
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
     ctx.fillText("Happy Birthday ♡", pad, 95);
 
-    ctx.fillStyle = '#9F1239';
-    ctx.font = "bold 22px 'Pretendard', sans-serif";
+    ctx.fillStyle = isDark ? '#FECDD3' : '#9F1239';
+    ctx.font = "bold 20px 'Pretendard', sans-serif";
     ctx.fillText("오늘은 너라는 기적이 태어난 날! 🎂", pad, 142);
 
-    ctx.font = "36px sans-serif";
-    ctx.fillText("🎀", canvas.width - pad - 60, 105);
+    const cuts = appState.cutMode || 4;
+    const birthdayIcons = ['🎂', '🕯️', '🎁', '🥂', '🎉', '🍰'];
+    const topH = 180; const bottomH = pad;
+    const stepH = (canvas.height - topH - bottomH) / cuts;
+
+    for (let i = 0; i < cuts; i++) {
+      const centerY = topH + (i * stepH) + (stepH / 2);
+      ctx.font = "28px sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(birthdayIcons[i % birthdayIcons.length], pad / 2, centerY);
+    }
   }
+  // 3) 🌟 베이스볼 (포토이스트 95px 상단 여백 일치 & 베이스볼 심볼 기둥)
   else if (fStyle === 'baseball') {
-    ctx.fillStyle = '#1E3A8A';
-    ctx.font = "900 64px 'Black Han Sans', sans-serif";
+    ctx.fillStyle = isDark ? '#93C5FD' : '#1E3A8A';
+    ctx.font = "900 62px 'Black Han Sans', sans-serif";
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
     ctx.fillText("⚾ PLAY BASEBALL!", pad, 95);
 
-    ctx.fillStyle = '#DC2626';
-    ctx.font = "bold 22px 'Pretendard', sans-serif";
+    ctx.fillStyle = isDark ? '#FCA5A5' : '#DC2626';
+    ctx.font = "bold 20px 'Pretendard', sans-serif";
     ctx.fillText("오늘도, 우리는 야구를 한다! ★", pad, 142);
 
-    ctx.font = "38px sans-serif";
-    ctx.fillText("⚾", canvas.width - pad - 60, 100);
+    const cuts = appState.cutMode || 4;
+    const baseballIcons = ['⚾', '🏏', '🏆', '⭐', '🧢', '🥇'];
+    const topH = 180; const bottomH = pad;
+    const stepH = (canvas.height - topH - bottomH) / cuts;
+
+    for (let i = 0; i < cuts; i++) {
+      const centerY = topH + (i * stepH) + (stepH / 2);
+      ctx.font = "28px sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(baseballIcons[i % baseballIcons.length], pad / 2, centerY);
+    }
   }
 
-  if (sideEngraveText.trim().length > 0 && fStyle !== 'birthday') {
-    ctx.save();
-    ctx.translate(canvas.width - (pad / 2), canvas.height / 2);
-    ctx.rotate(Math.PI / 2);
-    ctx.fillStyle = isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.75)';
-    ctx.font = `bold ${adaptiveFontSize}px monospace`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.letterSpacing = "3px";
-    ctx.fillText(sideEngraveText, 0, 0);
-    ctx.restore();
+  // 🌟 [요구사항 5] 슬롯별 1:1 개별 각인 렌더링 (각 사진의 세로 중심 높이에 나란히 인쇄)
+  if (slotCenters && slotCenters.length > 0) {
+    slotCenters.forEach((center, idx) => {
+      let text = (appState.slotEngraveTexts[idx] || '').trim();
+      
+      // 입력값이 비어있을 경우 프리미엄 테마 전용 기본 문구 자동 매핑
+      if (!text) {
+        if (fStyle === 'birthday') text = ['HAPPY', 'BIRTHDAY', 'WISH', 'CELEBRATE', 'LOVE', 'TODAY'][idx] || '';
+        else if (fStyle === 'baseball') text = ['PLAY BALL', 'HOMERUN', 'MVP', 'CHAMPION', 'VICTORY', 'ACE'][idx] || '';
+        else if (fStyle === 'photoist') text = ['PHOTOIST', 'BOOTH', 'STUDIO', 'EDITION', 'MOMENT', 'SCENE'][idx] || '';
+      }
+
+      if (text) {
+        ctx.save();
+        ctx.translate(canvas.width - (pad / 2), center.y);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.75)';
+        ctx.font = `bold ${adaptiveFontSize}px '${customFont}', monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.letterSpacing = "2px";
+        ctx.fillText(text, 0, 0);
+        ctx.restore();
+      }
+    });
   }
 
   ctx.restore();
@@ -2079,7 +2424,7 @@ function applyPixelFilterMath(imageData, filterKey, customAdjust) {
 
     if (sMul !== 1 && filterKey !== 'mono' && filterKey !== 'deepmono') { 
       const lum = 0.299*r + 0.587*g + 0.114*b; 
-      r = lum + (r - lum)*sMul; g = lum + (g - lum)*sMul; b = lum + (g - lum)*sMul; 
+      r = lum + (r - lum)*sMul; g = lum + (g - lum)*sMul; b = lum + (b - lum)*sMul; 
     }
     d[i] = Math.min(255, Math.max(0, r)); 
     d[i+1] = Math.min(255, Math.max(0, g)); 
@@ -2108,7 +2453,11 @@ function drawSingleSticker(ctx, st) {
     ctx.globalAlpha = st.opacity;
   }
 
-  if (st.type === 'text') {
+  // 🌟 실물 SVG 이미지 스티커 및 캔버스 부착형 QR 스티커 렌더링
+  if (st.type === 'image' && st.imgElement) {
+    const half = st.size / 2;
+    ctx.drawImage(st.imgElement, -half, -half, st.size, st.size);
+  } else if (st.type === 'text') {
     const fontName = st.fontFamily || 'Pretendard'; 
     ctx.font = `900 ${st.size}px '${fontName}', sans-serif`; 
     ctx.fillStyle = st.color || '#FFFFFF'; 
@@ -2127,7 +2476,7 @@ function drawSingleSticker(ctx, st) {
 }
 
 // ========================================================
-// 13. 날짜 오브젝트 시스템
+// 14. 날짜 오브젝트 시스템
 // ========================================================
 function toggleDateObject(checked) {
   saveStateForUndo();
@@ -2148,7 +2497,7 @@ function initOrUpdateDateSticker(show) {
         isDate: true,
         text: appState.typography.date,
         x: canvas && canvas.width ? canvas.width / 2 : 600,
-        y: canvas && canvas.height ? (appState.selectedFormat === 'strip' ? canvas.height - 120 : canvas.height - 100) : 3480,
+        y: canvas && canvas.height ? (appState.layout === 'strip' ? canvas.height - 130 : canvas.height - 110) : 3480,
         size: 38,
         rotation: 0,
         color: (appState.frameColor === '#FFFFFF' || appState.frameColor === '#E2E8F0') ? '#1E293B' : '#FFFFFF',
@@ -2167,7 +2516,7 @@ function initOrUpdateDateSticker(show) {
 }
 
 // ========================================================
-// 14. 2단계 돋보기 & 자석 스냅 인터랙션
+// 15. 2단계 돋보기 & 자석 스냅 인터랙션
 // ========================================================
 function updateFloatingLoupe(touchX, touchY, canvasCoordX, canvasCoordY, isDragging) {
   const loupe = document.getElementById('floatingLoupe');
@@ -2225,7 +2574,10 @@ function updateFloatingLoupe(touchX, touchY, canvasCoordX, canvasCoordY, isDragg
     lCtx.rotate(((st.rotation || 0) * Math.PI) / 180);
     lCtx.scale(autoScale, autoScale);
 
-    if (st.type === 'text') {
+    if (st.type === 'image' && st.imgElement) {
+      const half = st.size / 2;
+      lCtx.drawImage(st.imgElement, -half, -half, st.size, st.size);
+    } else if (st.type === 'text') {
       lCtx.font = `900 ${st.size}px '${st.fontFamily || 'Pretendard'}', sans-serif`;
       lCtx.fillStyle = st.color || '#1E293B';
       lCtx.textAlign = 'center';
@@ -2255,7 +2607,7 @@ function initCanvasInteractions() {
 
   let initialStickerDist = 0;
   let initialStickerAngle = 0;
-  let baseStickerSize = 65;
+  let baseStickerSize = 70;
   let baseStickerRotation = 0;
   let dragStartCoord = { x: 0, y: 0 };
 
@@ -2349,6 +2701,7 @@ function initCanvasInteractions() {
       let targetX = c.x - appState.dragStartPos.x;
       let targetY = c.y - appState.dragStartPos.y;
 
+      // 🌟 마그네틱 자석 스냅 가이드
       const snapThreshold = 35;
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
@@ -2572,7 +2925,7 @@ function setupCanvasPinchZoom() {
 }
 
 // ========================================================
-// 15. 가변 스플릿 리사이저 바
+// 16. 🌟 가변 스플릿 리사이저 바 (Pointer Events API 완전 적용)
 // ========================================================
 function initSplitResizer() {
   const resizer = document.getElementById('editorSplitResizer');
@@ -2585,6 +2938,7 @@ function initSplitResizer() {
 
   function onPointerDown(e) {
     isResizing = true;
+    resizer.setPointerCapture(e.pointerId);
     document.body.style.cursor = window.innerWidth >= 640 ? 'col-resize' : 'row-resize';
     e.preventDefault();
   }
@@ -2592,41 +2946,38 @@ function initSplitResizer() {
   function onPointerMove(e) {
     if (!isResizing) return;
     const isLandscape = window.innerWidth >= 640 && window.innerWidth > window.innerHeight;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
+    
     if (isLandscape) {
       const containerRect = container.getBoundingClientRect();
-      const offset = clientX - containerRect.left;
+      const offset = e.clientX - containerRect.left;
       const pct = Math.max(35, Math.min(75, (offset / containerRect.width) * 100));
       canvasPane.style.width = `${pct}%`;
       controlPane.style.width = `${100 - pct}%`;
     } else {
       const containerRect = container.getBoundingClientRect();
-      const offset = clientY - containerRect.top;
+      const offset = e.clientY - containerRect.top;
       const pct = Math.max(35, Math.min(75, (offset / containerRect.height) * 100));
       canvasPane.style.height = `${pct}%`;
       controlPane.style.height = `${100 - pct}%`;
     }
   }
 
-  function onPointerUp() {
+  function onPointerUp(e) {
     if (isResizing) {
       isResizing = false;
+      try { resizer.releasePointerCapture(e.pointerId); } catch(err){}
       document.body.style.cursor = '';
     }
   }
 
-  resizer.addEventListener('mousedown', onPointerDown);
-  resizer.addEventListener('touchstart', onPointerDown, { passive: false });
-  window.addEventListener('mousemove', onPointerMove);
-  window.addEventListener('touchmove', onPointerMove, { passive: false });
-  window.addEventListener('mouseup', onPointerUp);
-  window.addEventListener('touchend', onPointerUp);
+  resizer.addEventListener('pointerdown', onPointerDown);
+  resizer.addEventListener('pointermove', onPointerMove);
+  resizer.addEventListener('pointerup', onPointerUp);
+  resizer.addEventListener('pointercancel', onPointerUp);
 }
 
 // ========================================================
-// 16. 2중 큐 무소음 자동 아카이빙 & [⭐ 추억네컷 찜] 영구 보존
+// 17. 2중 큐 무소음 자동 아카이빙 & [⭐ 추억네컷 찜] 무제한 누적
 // ========================================================
 async function autoArchiveToCloudQuietly(canvas, isFav = false) {
   if (!canvas) return;
@@ -2644,15 +2995,18 @@ async function autoArchiveToCloudQuietly(canvas, isFav = false) {
     };
 
     let localArchive = JSON.parse(localStorage.getItem('chueok_local_gallery') || '[]');
-    if (!isFav) {
-      const normalPhotos = localArchive.filter(p => !p.isFavorite);
-      if (normalPhotos.length >= MAX_GALLERY_SLOTS) {
-        const oldestNormal = normalPhotos[normalPhotos.length - 1];
-        localArchive = localArchive.filter(p => p.id !== oldestNormal.id);
+    let favVault = JSON.parse(localStorage.getItem('photoist_favorite_vault') || '[]');
+
+    if (isFav) {
+      favVault.unshift(localEntry);
+      localStorage.setItem('photoist_favorite_vault', JSON.stringify(favVault));
+    } else {
+      if (localArchive.length >= MAX_GALLERY_SLOTS) {
+        localArchive.pop();
       }
+      localArchive.unshift(localEntry);
+      localStorage.setItem('chueok_local_gallery', JSON.stringify(localArchive));
     }
-    localArchive.unshift(localEntry);
-    localStorage.setItem('chueok_local_gallery', JSON.stringify(localArchive));
 
     if (appState.isRegisteredUser && appState.currentUser) {
       fetch(GOOGLE_DB_URL, {
@@ -2686,12 +3040,9 @@ async function toggleFavoriteStrip() {
   } else {
     alert("찜이 해제되었습니다. (일반 최근 히스토리 목록으로 관리됩니다)");
     if (appState.currentPhotoId) {
-      let localArchive = JSON.parse(localStorage.getItem('chueok_local_gallery') || '[]');
-      const target = localArchive.find(p => p.id === appState.currentPhotoId);
-      if (target) {
-        target.isFavorite = false;
-        localStorage.setItem('chueok_local_gallery', JSON.stringify(localArchive));
-      }
+      let favVault = JSON.parse(localStorage.getItem('photoist_favorite_vault') || '[]');
+      favVault = favVault.filter(p => p.id !== appState.currentPhotoId);
+      localStorage.setItem('photoist_favorite_vault', JSON.stringify(favVault));
     }
   }
 }
@@ -2711,11 +3062,11 @@ function updateFavoriteButtonUI() {
 }
 
 // ========================================================
-// 17. 15Mbps 무빙 비디오 & QR 다운로드
+// 18. 🌟 15Mbps 모션컷 & 3배속 모션컷 타임랩스(Full) 엔진
 // ========================================================
-async function generateFourCutVideo() {
+async function generateMotionCutVideo() {
   if (!appState.isRegisteredUser) {
-    alert("15Mbps 초고화질 무빙 비디오 생성은 [정회원 전용] 기능입니다. 로그인 후 이용해 주세요! 🎬");
+    alert("15Mbps 초고화질 모션컷 생성은 [정회원 전용] 기능입니다. 로그인 후 이용해 주세요! 🎬");
     openAuthModal('login');
     return;
   }
@@ -2746,12 +3097,12 @@ async function generateFourCutVideo() {
     }));
 
     const vCanvas = document.createElement('canvas'); 
-    if (appState.selectedFormat === 'grid') {
-      vCanvas.width = 1440; 
-      vCanvas.height = 2160;
-    } else {
+    if (appState.layout === 'strip') {
       vCanvas.width = 1080; 
       vCanvas.height = 3240;
+    } else {
+      vCanvas.width = 1440; 
+      vCanvas.height = 2160;
     }
 
     const vCtx = vCanvas.getContext('2d');
@@ -2775,13 +3126,16 @@ async function generateFourCutVideo() {
       const ext = mimeType.includes('mp4') ? 'mp4' : 'webm'; 
       const blob = new Blob(chunks, { type: mimeType }); 
       currentGeneratedVideoBlob = blob;
-      currentGeneratedVideoFileName = `[포토이스트]_Video_${Date.now()}.${ext}`;
+      currentGeneratedVideoFileName = `[포토이스트]_모션컷_${Date.now()}.${ext}`;
+
+      const modalTitle = document.getElementById('videoModalTitle');
+      if (modalTitle) modalTitle.innerHTML = `<i data-lucide="video" class="w-4 h-4 text-theme mr-1"></i> 모션컷 렌더링 완료 (15Mbps)`;
 
       openVideoResultModal(blob);
 
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = `<i data-lucide="video" class="w-3.5 h-3.5"></i><span>4컷 비디오</span>`;
+        btn.innerHTML = `<i data-lucide="video" class="w-3.5 h-3.5"></i><span>모션컷</span>`;
       }
       if (window.lucide) lucide.createIcons();
 
@@ -2797,7 +3151,7 @@ async function generateFourCutVideo() {
     const posterCanvas = document.getElementById('photoCanvas');
     const startTime = performance.now(); 
     const totalDuration = 6000;
-    const isGrid = (appState.selectedFormat === 'grid');
+    const isGrid = (appState.layout !== 'strip');
     const pad = Math.round(appState.frameThickness * 0.9);
     const gap = Math.round(pad * 0.45);
     const topH = 160; const bottomH = 180;
@@ -2842,12 +3196,105 @@ async function generateFourCutVideo() {
     }
     requestAnimationFrame(renderVideoLoop);
   } catch (err) { 
-    alert("비디오 생성 실패: " + err.message); 
+    alert("모션컷 생성 실패: " + err.message); 
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = `<i data-lucide="video" class="w-3.5 h-3.5"></i><span>4컷 비디오</span>`; 
+      btn.innerHTML = `<i data-lucide="video" class="w-3.5 h-3.5"></i><span>모션컷</span>`; 
     }
     if (window.lucide) lucide.createIcons(); 
+  }
+}
+
+// 🌟 [요구사항 12] 3배속 모션컷 타임랩스(Full) 엔진
+async function generateTimelapseFullVideo() {
+  if (!appState.fullSessionVideoBlob) {
+    alert("촬영 전 과정 녹화 데이터가 준비되지 않았습니다. 부스에서 6컷 촬영을 완료해 주세요.");
+    return;
+  }
+
+  const btn = document.getElementById('btnTimelapseVideo');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>3x 가속 중</span>`;
+  }
+  if (window.lucide) lucide.createIcons();
+
+  try {
+    const v = document.createElement('video');
+    v.src = URL.createObjectURL(appState.fullSessionVideoBlob);
+    v.muted = true;
+    v.playsInline = true;
+
+    await new Promise((res) => {
+      v.onloadedmetadata = () => {
+        v.playbackRate = 3.0; // 🌟 3배속 가속 재생
+        v.play().then(res).catch(res);
+      };
+    });
+
+    const tCanvas = document.createElement('canvas');
+    tCanvas.width = v.videoWidth || 1280;
+    tCanvas.height = v.videoHeight || 720;
+    const tCtx = tCanvas.getContext('2d');
+    tCtx.imageSmoothingEnabled = true;
+
+    let mimeType = 'video/mp4';
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported('video/mp4')) {
+      mimeType = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) ? 'video/webm;codecs=vp8' : 'video/webm';
+    }
+
+    const stream = tCanvas.captureStream(60);
+    const recorder = new MediaRecorder(stream, {
+      mimeType,
+      videoBitsPerSecond: 15000000
+    });
+    const chunks = [];
+    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+
+    recorder.onstop = () => {
+      const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+      const blob = new Blob(chunks, { type: mimeType });
+      currentGeneratedVideoBlob = blob;
+      currentGeneratedVideoFileName = `[포토이스트]_모션컷_타임랩스_Full_${Date.now()}.${ext}`;
+
+      const modalTitle = document.getElementById('videoModalTitle');
+      if (modalTitle) modalTitle.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-amber-500 mr-1"></i> 모션컷 타임랩스 (Full 3x) 완료`;
+
+      openVideoResultModal(blob);
+
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="zap" class="w-3.5 h-3.5"></i><span>3x타임랩스</span>`;
+      }
+      if (window.lucide) lucide.createIcons();
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const pureBase64 = extractPureBase64(reader.result);
+        uploadMediaToGoogleDrive(pureBase64, 'video', currentGeneratedVideoFileName, mimeType).catch(() => {});
+      };
+      reader.readAsDataURL(blob);
+    };
+
+    recorder.start();
+
+    function renderTimelapseLoop() {
+      if (v.ended || v.paused) {
+        recorder.stop();
+        return;
+      }
+      tCtx.drawImage(v, 0, 0, tCanvas.width, tCanvas.height);
+      requestAnimationFrame(renderTimelapseLoop);
+    }
+    requestAnimationFrame(renderTimelapseLoop);
+
+  } catch (err) {
+    alert("타임랩스 생성 실패: " + err.message);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="zap" class="w-3.5 h-3.5"></i><span>3x타임랩스</span>`;
+    }
+    if (window.lucide) lucide.createIcons();
   }
 }
 
@@ -2878,6 +3325,7 @@ function drawVideoSlot(ctx, v, x, y, w, h) {
   ctx.restore();
 }
 
+// 🌟 [요구사항 9] 스마트 듀얼 리샘플러 탑재 (500KB 경량화 & 지수 백오프 자동 재시도)
 async function generateImageQRCode() {
   const btn = document.getElementById('btnSaveQR'); 
   if (btn) { 
@@ -2892,31 +3340,43 @@ async function generateImageQRCode() {
 
   autoArchiveToCloudQuietly(canvas, appState.isCurrentFavorite);
 
-  const base64Img = canvas.toDataURL('image/png');
-  const fileName = `[포토이스트]_${appState.selectedFormat || 'photo'}_${Date.now()}.png`;
+  // 스마트 듀얼 리샘플러: 해상도 1200x2400 수준 축소 + JPEG 0.90 압축
+  const uploadOffCanvas = document.createElement('canvas');
+  const targetMaxW = 1200;
+  const scale = targetMaxW / canvas.width;
+  uploadOffCanvas.width = targetMaxW;
+  uploadOffCanvas.height = Math.round(canvas.height * scale);
+  const uCtx = uploadOffCanvas.getContext('2d');
+  uCtx.imageSmoothingEnabled = true;
+  uCtx.imageSmoothingQuality = 'high';
+  uCtx.drawImage(canvas, 0, 0, uploadOffCanvas.width, uploadOffCanvas.height);
 
-  try {
-    const res = await uploadMediaToGoogleDrive(extractPureBase64(base64Img), 'image', fileName, 'image/png');
+  const base64Img = uploadOffCanvas.toDataURL('image/jpeg', 0.90);
+  const fileName = `[포토이스트]_${appState.layout || 'photo'}_${Date.now()}.jpg`;
 
-    if (btn) { 
-      btn.disabled = false; 
-      btn.innerHTML = `<i data-lucide="qr-code" class="w-3.5 h-3.5"></i><span>QR 다운</span>`; 
-    }
-    if (window.lucide) lucide.createIcons();
+  let attempt = 0;
+  let res = null;
 
-    if (res && res.success && res.fileId) {
-      const driveDirectUrl = `https://drive.google.com/file/d/${res.fileId}/view?usp=sharing`;
-      displayResultWithQR(driveDirectUrl);
-    } else {
-      alert("구글 드라이브 업로드 지연 중입니다. 잠시 후 다시 시도해 주세요.");
-    }
-  } catch (err) {
-    if (btn) { 
-      btn.disabled = false; 
-      btn.innerHTML = `<i data-lucide="qr-code" class="w-3.5 h-3.5"></i><span>QR 다운</span>`; 
-    }
-    if (window.lucide) lucide.createIcons();
-    alert("QR 생성 중 오류가 발생했습니다: " + err.message);
+  while (attempt < 2) {
+    try {
+      res = await uploadMediaToGoogleDrive(extractPureBase64(base64Img), 'image', fileName, 'image/jpeg');
+      if (res && res.success && res.fileId) break;
+    } catch (e) {}
+    attempt++;
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  if (btn) { 
+    btn.disabled = false; 
+    btn.innerHTML = `<i data-lucide="qr-code" class="w-3.5 h-3.5"></i><span>QR 다운</span>`; 
+  }
+  if (window.lucide) lucide.createIcons();
+
+  if (res && res.success && res.fileId) {
+    const driveDirectUrl = `https://drive.google.com/file/d/${res.fileId}/view?usp=sharing`;
+    displayResultWithQR(driveDirectUrl);
+  } else {
+    alert("구글 드라이브 일시적 응답 지연입니다. 1~2초 후 [QR 다운]을 다시 눌러주세요.");
   }
 }
 
@@ -2959,7 +3419,7 @@ function autoSavePDF() {
   let printW = maxW, printH = printW / imgRatio; 
   if (printH > maxH) { printH = maxH; printW = printH * imgRatio; }
   pdf.addImage(imgData, 'JPEG', (pdfW - printW) / 2, (pdfH - printH) / 2, printW, printH); 
-  pdf.save(`[포토이스트]_Print_${appState.selectedFormat}_${Date.now()}.pdf`);
+  pdf.save(`[포토이스트]_Print_${appState.layout}_${Date.now()}.pdf`);
 }
 
 function sharePhotoDirectly() {
@@ -3039,7 +3499,7 @@ async function shareCurrentVideoFile() {
       await navigator.share({
         files: [file],
         title: '포토이스트 비디오',
-        text: '포토이스트 무빙 비디오입니다! 🎬'
+        text: '포토이스트 영상입니다! 🎬'
       });
       return;
     } catch (e) {
@@ -3050,7 +3510,7 @@ async function shareCurrentVideoFile() {
 }
 
 // ========================================================
-// 18. 이용후기, 고객소리함 & 관리자 모드
+// 19. 이용후기, 고객소리함 & 관리자 모드
 // ========================================================
 function handleStarClick(starNum) {
   currentRatingValue = starNum;
@@ -3501,7 +3961,7 @@ function getStoredNotices() {
       id: 'v17_3_init', 
       date: getFormattedTodayDate(), 
       version: APP_VERSION, 
-      content: 'v17.3 Pro: 4·5·6컷 가변 프레임, 포토이스트, 착용 소품 팩 & 15Mbps 무빙 비디오 업데이트 완료!' 
+      content: 'v17.3 Pro: 모션컷, 3배속 타임랩스, 1:1 슬롯별 각인 & QR 스티커 업데이트 완료!' 
     }];
   }
   return list;
@@ -3515,7 +3975,7 @@ function renderMainNotices() {
   container.innerHTML = `
     <div class="bg-white/95 border border-rose-100 rounded-xl px-2.5 py-1.5 flex items-center justify-between text-left">
       <span class="bg-theme text-white text-[9px] font-black px-1.5 py-0.5 rounded shrink-0">v17.3 Pro</span>
-      <p class="text-[11px] font-bold text-slate-800 truncate ml-2">4·5·6컷 가변 프레임, 착용 소품 팩 & 포토이스트 업데이트!</p>
+      <p class="text-[11px] font-bold text-slate-800 truncate ml-2">모션컷, 3배속 타임랩스, 1:1 슬롯별 각인 & QR 스티커 업데이트!</p>
     </div>
   `;
 }
@@ -3561,7 +4021,7 @@ async function collectDeviceTelemetry() {
 }
 
 // ========================================================
-// 19. 화면 전환 & 라이프사이클 관리
+// 20. 화면 전환 & 라이프사이클 관리
 // ========================================================
 function showScreen(id) {
   const screenIds = ['screenHome', 'screenBoard', 'screenLiveShoot', 'screenPick', 'screenEdit', 'screenResult'];
@@ -3625,6 +4085,8 @@ function saveSessionStateToStorage() {
       filters: appState.filters,
       typography: appState.typography,
       stickers: appState.stickers,
+      slotEngraveTexts: appState.slotEngraveTexts,
+      engraveFontFamily: appState.engraveFontFamily,
       images: appState.selectedImages.map(img => img ? img.src : null)
     };
     sessionStorage.setItem('chueok_active_session', JSON.stringify(backupData));
@@ -3655,6 +4117,8 @@ function restorePreviousSession() {
     appState.filters = data.filters;
     appState.typography = data.typography;
     appState.stickers = data.stickers || [];
+    appState.slotEngraveTexts = data.slotEngraveTexts || ["", "", "", "", "", ""];
+    appState.engraveFontFamily = data.engraveFontFamily || 'Playfair Display';
 
     const imgPromises = data.images.map(src => new Promise(res => {
       if (!src) return res(null);
@@ -3666,6 +4130,7 @@ function restorePreviousSession() {
     Promise.all(imgPromises).then(imgs => {
       appState.selectedImages = imgs.filter(Boolean);
       showScreen('screenEdit');
+      renderSlotEngraveInputs();
       renderStrip();
     });
   } catch (e) {
@@ -3732,7 +4197,8 @@ function saveStateForUndo() {
     cutMode: appState.cutMode, stickers: appState.stickers, layout: appState.layout, frameStyle: appState.frameStyle,
     frameThickness: appState.frameThickness, frameColor: appState.frameColor, activeFilter: appState.activeFilter,
     filters: appState.filters, typography: appState.typography, showDate: appState.showDate,
-    isCurrentFavorite: appState.isCurrentFavorite, customEngraveText: appState.customEngraveText
+    isCurrentFavorite: appState.isCurrentFavorite, slotEngraveTexts: appState.slotEngraveTexts,
+    engraveFontFamily: appState.engraveFontFamily
   });
   historyStack.push(snapshot); 
   if (historyStack.length > 25) historyStack.shift(); 
@@ -3745,7 +4211,8 @@ function undo() {
     cutMode: appState.cutMode, stickers: appState.stickers, layout: appState.layout, frameStyle: appState.frameStyle,
     frameThickness: appState.frameThickness, frameColor: appState.frameColor, activeFilter: appState.activeFilter,
     filters: appState.filters, typography: appState.typography, showDate: appState.showDate,
-    isCurrentFavorite: appState.isCurrentFavorite, customEngraveText: appState.customEngraveText
+    isCurrentFavorite: appState.isCurrentFavorite, slotEngraveTexts: appState.slotEngraveTexts,
+    engraveFontFamily: appState.engraveFontFamily
   });
   redoStack.push(currentSnap);
   applySnapshot(JSON.parse(historyStack.pop()));
@@ -3757,7 +4224,8 @@ function redo() {
     cutMode: appState.cutMode, stickers: appState.stickers, layout: appState.layout, frameStyle: appState.frameStyle,
     frameThickness: appState.frameThickness, frameColor: appState.frameColor, activeFilter: appState.activeFilter,
     filters: appState.filters, typography: appState.typography, showDate: appState.showDate,
-    isCurrentFavorite: appState.isCurrentFavorite, customEngraveText: appState.customEngraveText
+    isCurrentFavorite: appState.isCurrentFavorite, slotEngraveTexts: appState.slotEngraveTexts,
+    engraveFontFamily: appState.engraveFontFamily
   });
   historyStack.push(currentSnap);
   applySnapshot(JSON.parse(redoStack.pop()));
@@ -3775,13 +4243,15 @@ function applySnapshot(snap) {
   appState.typography = snap.typography;
   appState.showDate = snap.showDate !== undefined ? snap.showDate : true;
   appState.isCurrentFavorite = snap.isCurrentFavorite || false;
-  appState.customEngraveText = snap.customEngraveText || '';
+  appState.slotEngraveTexts = snap.slotEngraveTexts || ["", "", "", "", "", ""];
+  appState.engraveFontFamily = snap.engraveFontFamily || 'Playfair Display';
   
   const dateCheck = document.getElementById('checkShowDate');
   if (dateCheck) dateCheck.checked = appState.showDate;
-  const engraveInput = document.getElementById('customEngraveInput');
-  if (engraveInput) engraveInput.value = appState.customEngraveText;
+  const fontSel = document.getElementById('engraveFontSelect');
+  if (fontSel) fontSel.value = appState.engraveFontFamily;
 
+  renderSlotEngraveInputs();
   updateFavoriteButtonUI();
   renderStrip();
 }
@@ -3796,7 +4266,6 @@ function loadSavedTheme() {
   document.documentElement.style.setProperty('--theme-color-light', t.light);
 }
 
-// 🌟 시간 타이머 버튼 동작 보장
 function setTimerSec(sec, btn) { 
   appState.timerSec = sec; 
   document.querySelectorAll('.timer-chip').forEach(b => { 
@@ -3814,7 +4283,7 @@ function initDynamicUI() {
   ];
   const emojiGrid = document.getElementById('emojiGrid');
   if (emojiGrid) {
-    emojiGrid.innerHTML = emojis.map(e => `<button onclick="addPropSticker('${e}', 90)" class="p-0.5 hover:bg-slate-200 rounded cursor-pointer active:scale-90 transition">${e}</button>`).join('');
+    emojiGrid.innerHTML = emojis.map(e => `<button onclick="addTextSticker('${e}')" class="p-0.5 hover:bg-slate-200 rounded cursor-pointer active:scale-90 transition">${e}</button>`).join('');
   }
 
   const texts = [
@@ -3826,30 +4295,17 @@ function initDynamicUI() {
     textStickerGrid.innerHTML = texts.map(t => `<button onclick="addTextSticker('${t}')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[10px] rounded border border-slate-300 shrink-0 cursor-pointer active:scale-95 transition">${t}</button>`).join('');
   }
 
-  const basicColorGrid = document.getElementById('frameColorGridBasic');
-  if (basicColorGrid) {
-    basicColorGrid.innerHTML = PALETTE_COLORS.map(c => `
-      <button onclick="changeFrameColor('${c}', this)" class="color-btn w-4 h-4 rounded-full border border-slate-200 shadow-2xs shrink-0" style="background-color:${c};"></button>
-    `).join('') + `<label class="w-4 h-4 rounded-full bg-white border border-slate-300 flex items-center justify-center cursor-pointer shadow-2xs shrink-0 relative overflow-hidden"><i data-lucide="pipette" class="w-2.5 h-2.5 text-rose-600"></i><input type="color" value="#000000" onchange="changeFrameColor(this.value, null)" class="opacity-0 absolute inset-0 cursor-pointer"></label>`;
-  }
-
-  const simpleColorGrid = document.getElementById('frameColorGridSimple');
-  if (simpleColorGrid) {
-    simpleColorGrid.innerHTML = SIMPLE_PALETTE.map(c => `
-      <button onclick="changeFrameColor('${c}', this)" class="color-btn w-4 h-4 rounded-full border border-slate-200 shadow-2xs shrink-0" style="background-color:${c};"></button>
+  // 🌟 [요구사항 11] 24종 확장 프레임 컬러 팔레트 렌더링
+  const extGrid = document.getElementById('frameColorGridExtended');
+  if (extGrid) {
+    extGrid.innerHTML = EXTENDED_PALETTE_COLORS.map(c => `
+      <button onclick="changeFrameColor('${c}', this)" class="color-btn w-6 h-6 rounded-full border border-slate-200 shadow-2xs mx-auto hover:scale-110 active:scale-95 transition" style="background-color:${c};" title="${c}"></button>
     `).join('');
-  }
-
-  const premiumColorGrid = document.getElementById('frameColorGridPremium');
-  if (premiumColorGrid) {
-    premiumColorGrid.innerHTML = ['#000000', '#111111', '#18181B', '#FFFFFF', '#FECDD3', '#BAE6FD', '#EDE9FE'].map(c => `
-      <button onclick="changeFrameColor('${c}', this)" class="color-btn w-4 h-4 rounded-full border border-slate-200 shadow-2xs shrink-0" style="background-color:${c};"></button>
-    `).join('') + `<input type="color" value="#000000" onchange="changeFrameColor(this.value, null)" class="w-4 h-4 rounded-full cursor-pointer p-0 border border-slate-300">`;
   }
 }
 
 // ========================================================
-// 20. 🌟 [핵심] 모든 인터랙션 함수 window 전역 바인딩 (미반응 원천 차단)
+// 21. 🌟 [핵심] 모든 인터랙션 함수 window 전역 바인딩
 // ========================================================
 window.startSession = startSession;
 window.startActualCountdownSession = startActualCountdownSession;
@@ -3879,11 +4335,13 @@ window.handleFilterClick = handleFilterClick;
 window.onFineTuneSliderChange = onFineTuneSliderChange;
 window.toggleDateObject = toggleDateObject;
 
-window.onCustomEngraveChange = onCustomEngraveChange;
+window.onSlotEngraveTextChange = onSlotEngraveTextChange;
+window.onEngraveFontChange = onEngraveFontChange;
 window.applyDefaultSideEngrave = applyDefaultSideEngrave;
 window.clearSideEngrave = clearSideEngrave;
 
-window.addPropSticker = addPropSticker;
+window.addSvgPropSticker = addSvgPropSticker;
+window.addQrCodeStickerToCanvas = addQrCodeStickerToCanvas;
 window.addDirectTextSticker = addDirectTextSticker;
 window.addTextSticker = addTextSticker;
 window.clearAllStickers = clearAllStickers;
@@ -3894,7 +4352,8 @@ window.onSelectedStickerFontChange = onSelectedStickerFontChange;
 window.deleteSelectedSticker = deleteSelectedSticker;
 
 window.toggleFavoriteStrip = toggleFavoriteStrip;
-window.generateFourCutVideo = generateFourCutVideo;
+window.generateMotionCutVideo = generateMotionCutVideo;
+window.generateTimelapseFullVideo = generateTimelapseFullVideo;
 window.autoSavePDF = autoSavePDF;
 window.sharePhotoDirectly = sharePhotoDirectly;
 window.generateImageQRCode = generateImageQRCode;
@@ -3914,7 +4373,8 @@ window.checkUserIdDuplicate = checkUserIdDuplicate;
 window.processRegister = processRegister;
 window.processLogin = processLogin;
 window.processLogout = processLogout;
-window.processFindAccount = processFindAccount;
+window.processFindId = processFindId;
+window.processResetPasswordDirect = processResetPasswordDirect;
 
 window.openMyProfileModal = openMyProfileModal;
 window.closeMyProfileModal = closeMyProfileModal;
@@ -3956,7 +4416,7 @@ window.restorePreviousSession = restorePreviousSession;
 window.resetApp = resetApp;
 
 // ========================================================
-// 21. 앱 초기 구동 엔트리포인트
+// 22. 앱 초기 구동 엔트리포인트 (동적 뷰포트 & 리사이즈)
 // ========================================================
 window.addEventListener('DOMContentLoaded', () => {
   ['screenLiveShoot', 'screenPick', 'screenEdit', 'screenBoard', 'screenResult', 'videoResultModal', 'galleryCollectModal', 'adminDashboardModal', 'customerBotModal', 'authModal', 'myGalleryModal', 'mainShareModal', 'myProfileModal'].forEach(id => {
