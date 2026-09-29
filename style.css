@@ -6,7 +6,7 @@
   --theme-primary-hover: #e11d48;
   --theme-color-hover: #e11d48;
   --theme-color-light: #fff1f2;
-  --app-vh: 100vh;
+  --app-vh: 100dvh;
 }
 
 * {
@@ -74,15 +74,17 @@ body {
   transition: opacity 0.15s ease, transform 0.05s ease-out;
 }
 
-/* 슬롯 드래그 하이라이트 */
+/* 슬롯 드래그앤드롭 하이라이트 */
+.drop-slot {
+  transition: all 0.2s ease;
+}
 .slot-dragover {
   border-color: #10b981 !important;
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.4) !important;
-  transform: scale(1.04);
-  transition: all 0.15s ease;
+  transform: scale(1.03);
 }
 
-/* 🌟 착용 소품 칩 스타일 */
+/* 착용 소품 칩 스타일 */
 .prop-chip {
   background-color: #ffffff;
   border: 1px solid #fecdd3;
@@ -157,9 +159,12 @@ body {
   display: none !important;
 }
 
-/* ========================================================
-   🌟 14, 15. 스마트폰 가로모드 5:5 스플릿 & 아이패드 중앙 정렬
-======================================================== */
+/* 아이패드 및 모바일 세이프 에어리어 보정 */
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* 스마트폰 가로모드 및 태블릿 반응형 5:5 분할 */
 @media (min-width: 640px) and (orientation: landscape) {
   .responsive-editor-layout {
     flex-direction: row !important;
@@ -186,10 +191,13 @@ body {
   }
 }
 
-/* 아이패드 세로모드 중앙정렬 */
+/* 아이패드 세로모드 중앙 정렬 및 여백 압축 */
 @media (min-width: 768px) and (orientation: portrait) {
   #screenEdit, #screenPick, #screenHome {
     justify-content: center;
     align-items: center;
+  }
+  #screenLiveShoot .ratio-btn {
+    padding: 0.35rem 0.75rem !important;
   }
 }
