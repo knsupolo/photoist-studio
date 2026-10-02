@@ -1,18 +1,17 @@
 /**
- * 포토이스트 (Photoist) Studio Pro v17.3 Pro [1편 / 전반부]
+ * 포토이스트 (Photoist) Studio Pro v17.4 Pro [1편 / 전반부]
  * 
- * [탑재 핵심 엔진]
- * 1. 최신 구글 웹앱 배포 URL 연동 및 시스템 전역 상태 관리
- * 2. 아이패드(iPad 4:3) 및 모바일 뷰포트 높이(--app-vh) 동적 보정
- * 3. 카메라 회전 오버레이 반투명화(카메라 비침 유지) & 우측 상단 닫기(X)
- * 4. 2x2 세로모드 촬영 시작 시 화면 축소 버그 원천 해결 (뷰포트 fixed 및 뷰파인더 고정)
- * 5. 사진 배치(screenPick) 화면: 포토이스트 매트블랙(#111111) 통일 & 초기 슬롯 완전 비우기
- * 6. 가로 촬영 모드(1x4, 1x5, 1x6 세로 롱 스트립) 1:1 종횡비 프리뷰 동기화
- * 7. 4컷 / 5컷(상2-중1대형-하2 화보형) / 6컷(2x3 그리드 & 1x6 스트립) 가변 선택 엔진
- * 8. 4자리 PIN 로그인 완전 삭제 (아이디/비밀번호 단일 체계 간소화)
- * 9. 회원가입 유효성: 이름 + 생년월일 6자리(YYMMDD) 동일인 중복 가입 방지 & 비밀번호 확인 일치 검증
- * 10. 계정 복구 센터: 아이디 즉시 확인(FIND_ID) 및 비밀번호 직접 새 비밀번호로 재설정(RESET_PW_DIRECT)
- * 11. 마이페이지 (내 정보): 10종 앱 전체 UI 테마 선택기 탑재 및 양방향 동기화
+ * [v17.4 Pro 핵심 반영 사항]
+ * 1. 시스템 버전 상수: v17.4 Pro 공식 반영 및 구글 웹앱 배포 URL 연동
+ * 2. 모바일/아이패드 세로 촬영 뷰포트 고정 (100dvh) 및 3단 플렉스 격리로 하단 버튼 잘림 완전 해결
+ * 3. 2x2 세로 촬영 시작 시 화면 축소/찌그러짐 버그 원천 차단 (비디오/뷰파인더 고정)
+ * 4. 사진 선택(screenPick) 화면: 포토이스트 매트블랙(#111111) 통일 & 초기 빈 슬롯(Empty Slots) UX
+ * 5. 가로 촬영 모드(1x4, 1x5, 1x6 세로 롱 스트립) 1:1 종횡비 프리뷰 동기화
+ * 6. 4컷 / 5컷(상2-중1대형-하2 화보형) / 6컷(2x3 그리드 & 1x6 스트립) 가변 선택 엔진
+ * 7. 회원가입 유효성: 이름 + 생년월일 6자리(YYMMDD) 동일인 중복 가입 방지 & 비밀번호 확인 일치 검증
+ * 8. 계정 복구 센터: 아이디 즉시 확인(FIND_ID) 및 비밀번호 직접 새 비밀번호로 재설정(RESET_PW_DIRECT)
+ * 9. 마이페이지 (내 정보): 10종 앱 전체 UI 테마 선택기 탑재 및 양방향 동기화
+ * 10. 전 과정 4배속 모션컷 타임랩스(Full) 상시 백그라운드 레코딩 파이프라인 탑재
  */
 
 const GOOGLE_DB_URL = "https://script.google.com/macros/s/AKfycbw1fjoUYoKQOHNNatPY_8q8X-1ogUV7iaFsIMpYioStlVX1SZK9hYiY32P-bGv7GUVoBw/exec";
@@ -148,9 +147,13 @@ let appState = {
   slotEngraveTexts: ["", "", "", "", "", ""],
   engraveFontFamily: 'Playfair Display',
 
+  // 🌟 [v17.4 Pro] 독립 토글 옵션
+  showDate: true,
+  showQrSticker: false,
+  qrCachedDataUrl: null,
+
   activeFilter: 'normal',
   filters: { bright: 100, contrast: 100, saturate: 100 },
-  showDate: true,
   isCurrentFavorite: false,
   currentPhotoId: null,
   typography: {
@@ -405,7 +408,6 @@ async function checkUserIdDuplicate() {
   }
 }
 
-// 🌟 회원가입 처리 (비밀번호 확인 + 이름 + 생년월일 6자리 중복 차단)
 async function processRegister() {
   const name = (document.getElementById('regUserName').value || "").trim();
   const dob = (document.getElementById('regUserDob').value || "").trim();
@@ -419,7 +421,7 @@ async function processRegister() {
   if (!dob || dob.length !== 6 || isNaN(dob)) { alert("생년월일은 6자리 숫자(YYMMDD)로 입력해주세요."); return; }
   if (!id || id.length < 4 || id.length > 12) { alert("아이디는 4~12자리 영문 또는 숫자여야 합니다."); return; }
   if (!pw || pw.length < 6 || !/(?=.*[A-Za-z])(?=.*\d)/.test(pw)) { alert("비밀번호는 6자리 이상 영문과 숫자를 혼합해야 합니다."); return; }
-  if (pw !== pwConfirm) { alert("비밀번호와 비밀번호 확인이 일치하지 않습니다."); return; }
+  if (pw !== pwConfirm) { alert("비밀번호와 비밀번호 확인 입력값이 일치하지 않습니다."); return; }
   if (!email || !email.includes('@')) { alert("올바른 이메일 주소를 입력해주세요."); return; }
 
   try {
@@ -442,7 +444,6 @@ async function processRegister() {
   }
 }
 
-// 🌟 로그인 처리 (knsupolo 마스터 직통 승인)
 async function processLogin() {
   const idInput = document.getElementById('loginUserId');
   const pwInput = document.getElementById('loginUserPw');
@@ -554,7 +555,6 @@ function processLogout() {
   alert("정상적으로 로그아웃되었습니다.");
 }
 
-// 🌟 [인증 3-A] 아이디 찾기
 async function processFindId() {
   const name = (document.getElementById('findIdName').value || "").trim();
   const dob = (document.getElementById('findIdDob').value || "").trim();
@@ -583,7 +583,6 @@ async function processFindId() {
   }
 }
 
-// 🌟 [인증 3-B] 비밀번호 직접 재설정 (임시비번 메일 대체)
 async function processResetPasswordDirect() {
   const userId = (document.getElementById('resetPwUserId').value || "").trim().toLowerCase();
   const name = (document.getElementById('resetPwName').value || "").trim();
@@ -784,7 +783,6 @@ async function openMyGalleryModal() {
   const localArchive = JSON.parse(localStorage.getItem('chueok_local_gallery') || '[]');
   const localFavVault = JSON.parse(localStorage.getItem('photoist_favorite_vault') || '[]');
   
-  // 병합 캐시 (중복 제거)
   const combined = [...localFavVault, ...localArchive.filter(p => !localFavVault.some(f => f.id === p.id))];
   cachedUserGalleryPhotos = combined;
   renderFilteredGalleryGrid();
@@ -986,7 +984,7 @@ function resumeCountdown() {
 }
 
 // ========================================================
-// 8. 카메라 대기실 (아이패드 4:3 뷰포트 고정 & 축소 방지)
+// 8. 카메라 대기실 (아이패드/모바일 뷰포트 고정 & 축소 방지)
 // ========================================================
 function startSession(format) {
   appState.selectedFormat = format || 'strip';
@@ -1106,7 +1104,7 @@ function setViewfinderRatio(ratio, btn) {
 }
 
 // ========================================================
-// 9. 6컷 연속 촬영 파이프라인 (전 과정 3배속 타임랩스 백그라운드 녹화 탑재)
+// 9. 6컷 연속 촬영 (전 과정 백그라운드 녹화 파이프라인 탑재)
 // ========================================================
 function startActualCountdownSession() {
   playBeep(900);
@@ -1132,9 +1130,7 @@ function startActualCountdownSession() {
     } 
   }
 
-  // 🌟 전 과정 3배속 타임랩스 백그라운드 녹화 시작
   startFullSessionTimelapseRecording();
-
   runContinuousLiveShoot(0);
 }
 
@@ -1319,7 +1315,7 @@ function stopCameraAndAudio() {
 }
 
 // ========================================================
-// 10. 사진 선택 (포토이스트 매트블랙 통일, 스트립 1:1 프리뷰, 초기 빈 슬롯)
+// 10. 사진 선택 (스트립 1:1 프리뷰 & 초기 빈 슬롯)
 // ========================================================
 function initEmptySlots(cuts) {
   appState.cutMode = cuts;
@@ -1378,7 +1374,6 @@ function returnToPickScreen() {
   renderPickScreen();
 }
 
-// 🌟 [요구사항 3] 가로 촬영 모드 1:1 스트립 프리뷰 & 세로 촬영 모드 2x2 엽서형 동기화
 function buildPickMiniPreviewStructure() {
   const container = document.getElementById('pickMiniFramePreview');
   if (!container) return;
@@ -1389,7 +1384,6 @@ function buildPickMiniPreviewStructure() {
 
   let slotsHtml = "";
 
-  // A. 세로 촬영 모드 (2x2 엽서형)
   if (isGrid) {
     if (cuts === 4) {
       container.className = "w-72 sm:w-80 aspect-[2/3] p-3.5 shadow-2xl flex flex-col justify-between border border-slate-700 rounded-2xl transition-all";
@@ -1429,9 +1423,7 @@ function buildPickMiniPreviewStructure() {
         </div>
       `;
     }
-  } 
-  // B. 가로 촬영 모드 (1x4, 1x5, 1x6 세로 롱 스트립 1:1 동기화)
-  else {
+  } else {
     if (cuts === 4) {
       container.className = "w-52 aspect-[1/3] p-2.5 shadow-2xl flex flex-col space-y-1.5 border border-slate-700 rounded-2xl transition-all";
       slotsHtml = `
@@ -1664,7 +1656,6 @@ function confirmSelectedFour() {
   }
   showScreen('screenEdit');
 
-  // 슬롯별 개별 각인 입력창 동적 생성
   renderSlotEngraveInputs();
 
   requestAnimationFrame(() => {
@@ -1673,7 +1664,6 @@ function confirmSelectedFour() {
 
   const layoutRow = document.getElementById('layoutSelectionRow');
   if (layoutRow) {
-    // 🌟 [요구사항 4] 1x4, 1x5, 1x6 세로 스트립형 전체에서 Twin 2줄 인쇄 모드 선택 개방
     if (appState.selectedFormat === 'strip') layoutRow.classList.remove('hidden');
     else layoutRow.classList.add('hidden');
   }
@@ -1693,10 +1683,13 @@ function resetEditorToDefault() {
   appState.typography.fontSize = 54;
   appState.slotEngraveTexts = ["", "", "", "", "", ""];
   appState.engraveFontFamily = 'Playfair Display';
+  appState.showQrSticker = false;
 
   const slThick = document.getElementById('sliderThickness'); if (slThick) slThick.value = 60;
   const fineTune = document.getElementById('filterFineTunePanel'); if (fineTune) fineTune.classList.add('hidden');
   const stBar = document.getElementById('stickerControlBar'); if (stBar) stBar.classList.add('hidden');
+  const qrCheck = document.getElementById('checkShowQr'); if (qrCheck) qrCheck.checked = false;
+  
   resetCanvasZoom();
   historyStack = []; 
   redoStack = [];
@@ -1774,7 +1767,6 @@ function cancelGalleryCollect() {
     m.style.setProperty('display', 'none', 'important');
   }
 }
-
 // ========================================================
 // 11. 🌟 테마 컨트롤러 & 슬롯별 1:1 측면 각인 툴바
 // ========================================================
@@ -1811,7 +1803,7 @@ function switchThemeCategory(category) {
   }
 }
 
-// 1. 기본 테마: 상단 / 중간 / 하단 / 상·하단 / 계단형 (문구 여백 260~320px 대폭 확장)
+// 1. 기본 테마: 상단 / 중간 / 하단 / 상·하단 / 계단형
 function setBasicTextPosition(pos, btn) {
   appState.frameStyle = pos; 
   document.querySelectorAll('.basic-pos-btn').forEach(b => {
@@ -1843,7 +1835,7 @@ function setPremiumSubTheme(key, btn) {
   renderStrip();
 }
 
-// 🌟 [요구사항 5] 슬롯별 1:1 개별 각인 입력창 동적 생성 (N컷 = N개 인풋)
+// 🌟 슬롯별 1:1 개별 각인 입력창 동적 생성 (N컷 = N개 인풋)
 function renderSlotEngraveInputs() {
   const container = document.getElementById('sideEngraveInputsContainer');
   if (!container) return;
@@ -1871,7 +1863,7 @@ function onSlotEngraveTextChange(index, val) {
   renderStrip();
 }
 
-// 🌟 [요구사항 4] 측면 세로 각인 전용 폰트 변경
+// 측면 세로 각인 전용 폰트 변경
 function onEngraveFontChange(fontName) {
   appState.engraveFontFamily = fontName;
   renderStrip();
@@ -1893,94 +1885,44 @@ function clearSideEngrave() {
 }
 
 // ========================================================
-// 12. 🌟 실물 고화질 벡터 SVG 소품 팩 & 캔버스 부착형 QR 스티커
+// 12. 🌟 QR코드 프레임 각인 독립 토글 시스템
 // ========================================================
-const SVG_PROP_TEMPLATES = {
-  headband_ribbon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120"><path d="M30,110 C30,40 170,40 170,110" fill="none" stroke="#FB7185" stroke-width="14" stroke-linecap="round"/><path d="M100,45 C80,20 60,35 85,55 C95,62 100,50 100,45 Z" fill="#F43F5E"/><path d="M100,45 C120,20 140,35 115,55 C105,62 100,50 100,45 Z" fill="#F43F5E"/><circle cx="100" cy="48" r="8" fill="#BE123C"/></svg>`,
-  party_hat: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200"><polygon points="80,25 25,175 135,175" fill="#F59E0B"/><circle cx="80" cy="20" r="14" fill="#F43F5E"/><path d="M38,140 Q80,165 122,140" fill="none" stroke="#3B82F6" stroke-width="10"/><path d="M48,105 Q80,125 112,105" fill="none" stroke="#10B981" stroke-width="10"/><path d="M58,70 Q80,85 102,70" fill="none" stroke="#EC4899" stroke-width="10"/></svg>`,
-  crown_gold: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 130"><polygon points="20,110 35,40 75,75 100,25 125,75 165,40 180,110" fill="#FBBF24" stroke="#D97706" stroke-width="4"/><circle cx="35" cy="35" r="7" fill="#EF4444"/><circle cx="100" cy="20" r="8" fill="#3B82F6"/><circle cx="165" cy="35" r="7" fill="#10B981"/><rect x="25" y="105" width="150" height="12" rx="4" fill="#D97706"/></svg>`,
-  bunny_ears: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180"><ellipse cx="55" cy="85" rx="22" ry="75" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="4" transform="rotate(-15 55 85)"/><ellipse cx="55" cy="85" rx="12" ry="55" fill="#FECDD3" transform="rotate(-15 55 85)"/><ellipse cx="125" cy="85" rx="22" ry="75" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="4" transform="rotate(15 125 85)"/><ellipse cx="125" cy="85" rx="12" ry="55" fill="#FECDD3" transform="rotate(15 125 85)"/></svg>`,
-  cat_whiskers: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><polygon points="100,35 90,20 110,20" fill="#FB7185"/><line x1="80" y1="26" x2="15" y2="18" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/><line x1="80" y1="32" x2="10" y2="34" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/><line x1="80" y1="38" x2="18" y2="50" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/><line x1="120" y1="26" x2="185" y2="18" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/><line x1="120" y1="32" x2="190" y2="34" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/><line x1="120" y1="38" x2="182" y2="50" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/></svg>`,
-  glasses_sunglasses: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 90"><line x1="90" y1="42" x2="130" y2="42" stroke="#0F172A" stroke-width="7"/><path d="M15,42 Q55,20 85,42 Q65,75 25,65 Z" fill="#0F172A"/><path d="M135,42 Q165,20 205,42 Q195,75 145,65 Z" fill="#0F172A"/></svg>`,
-  glasses_geek: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 90"><line x1="95" y1="42" x2="125" y2="42" stroke="#18181B" stroke-width="6"/><rect x="20" y="20" width="75" height="52" rx="14" fill="none" stroke="#18181B" stroke-width="7"/><rect x="125" y="20" width="75" height="52" rx="14" fill="none" stroke="#18181B" stroke-width="7"/></svg>`,
-  heart_tint_pink: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="M60,105 C20,70 5,45 20,25 C35,5 55,20 60,30 C65,20 85,5 100,25 C115,45 100,70 60,105 Z" fill="#F43F5E"/></svg>`,
-  heart_tint_white: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="M60,105 C20,70 5,45 20,25 C35,5 55,20 60,30 C65,20 85,5 100,25 C115,45 100,70 60,105 Z" fill="#FFFFFF"/></svg>`
-};
-
-function addSvgPropSticker(propType, size = 110, opacity = 1.0) {
+function toggleQrSticker(checked) {
   saveStateForUndo();
-  const svgXml = SVG_PROP_TEMPLATES[propType];
-  if (!svgXml) return;
+  appState.showQrSticker = checked;
 
-  const blob = new Blob([svgXml], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  const img = new Image();
-  img.onload = () => {
-    const canvas = document.getElementById('photoCanvas');
-    const newSticker = {
-      id: Date.now(),
-      type: 'image',
-      imgElement: img,
-      x: canvas ? canvas.width / 2 : 600,
-      y: canvas ? canvas.height / 2 : 1800,
-      size: size,
-      rotation: 0,
-      opacity: opacity
-    };
-    appState.stickers.push(newSticker);
-    appState.selectedStickerIdx = appState.stickers.length - 1;
-    showStickerControls(newSticker);
-    renderStrip();
-    URL.revokeObjectURL(url);
-  };
-  img.src = url;
-}
+  if (checked && !appState.qrCachedDataUrl) {
+    const tempDiv = document.createElement('div');
+    const downloadTargetUrl = window.location.href.split('?')[0];
 
-// 🌟 [요구사항 5] 사진 다운로드 직결 캔버스 부착형 QR코드 스티커 생성
-function addQrCodeStickerToCanvas() {
-  saveStateForUndo();
-  const tempDiv = document.createElement('div');
-  const downloadTargetUrl = window.location.href.split('?')[0];
+    new QRCode(tempDiv, {
+      text: downloadTargetUrl,
+      width: 200,
+      height: 200,
+      correctLevel: QRCode.CorrectLevel.M
+    });
 
-  new QRCode(tempDiv, {
-    text: downloadTargetUrl,
-    width: 256,
-    height: 256,
-    correctLevel: QRCode.CorrectLevel.M
-  });
+    setTimeout(() => {
+      const qrImg = tempDiv.querySelector('img');
+      const qrCanvas = tempDiv.querySelector('canvas');
+      const dataUri = qrImg && qrImg.src ? qrImg.src : (qrCanvas ? qrCanvas.toDataURL('image/png') : null);
 
-  setTimeout(() => {
-    const qrImg = tempDiv.querySelector('img');
-    const qrCanvas = tempDiv.querySelector('canvas');
-    const dataUri = qrImg && qrImg.src ? qrImg.src : (qrCanvas ? qrCanvas.toDataURL('image/png') : null);
-
-    if (dataUri) {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.getElementById('photoCanvas');
-        const newSticker = {
-          id: Date.now(),
-          type: 'image',
-          isQr: true,
-          imgElement: img,
-          x: canvas ? canvas.width - 120 : 1050,
-          y: canvas ? canvas.height - 130 : 3450,
-          size: 100,
-          rotation: 0,
-          opacity: 1.0
+      if (dataUri) {
+        const img = new Image();
+        img.onload = () => {
+          appState.qrCachedDataUrl = img;
+          renderStrip();
         };
-        appState.stickers.push(newSticker);
-        appState.selectedStickerIdx = appState.stickers.length - 1;
-        showStickerControls(newSticker);
-        renderStrip();
-      };
-      img.src = dataUri;
-    }
-  }, 120);
+        img.src = dataUri;
+      }
+    }, 120);
+  } else {
+    renderStrip();
+  }
 }
 
 // ========================================================
-// 13. 🌟 메인 캔버스 렌더러 (2x2 계단형 스텝 단차 & 슬롯별 1:1 각인)
+// 13. 🌟 메인 캔버스 렌더러 (2x2 계단형 스텝 단차 & 슬롯별 1:1 각인 & QR 인쇄)
 // ========================================================
 function renderStrip(isFinalExport = false) {
   const canvas = document.getElementById('photoCanvas'); 
@@ -2018,7 +1960,7 @@ function renderStrip(isFinalExport = false) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // [레이어 1: 프레임 배경색] (🌟 생일파티 테마도 frameColor 100% 정상 반영)
+  // [레이어 1: 프레임 배경색] (생일파티 테마도 frameColor 정상 반영)
   ctx.fillStyle = appState.frameColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -2031,16 +1973,15 @@ function renderStrip(isFinalExport = false) {
   } else if (layout === 'twin') {
     slotCenters = renderTwinStripSlots(ctx, canvas, pad, gap, cuts);
   } else {
-    // 엽서형 (2x2 / 5컷 화보형 / 2x3 풀그리드)
     if (cuts === 4) slotCenters = renderGrid4Slots(ctx, canvas, pad, gap, fStyle);
     else if (cuts === 5) slotCenters = renderMagazine5Slots(ctx, canvas, pad, gap, fStyle);
     else if (cuts === 6) slotCenters = renderGrid6Slots(ctx, canvas, pad, gap, fStyle);
   }
 
-  // [레이어 3: 테마 오버레이 & 🌟 슬롯별 1:1 개별 각인 렌더링]
+  // [레이어 3: 테마 오버레이 & 슬롯별 1:1 개별 각인 & QR 인쇄 렌더링]
   renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout, slotCenters);
 
-  // [레이어 4: 스티커, QR 스티커 & 날짜 오브젝트]
+  // [레이어 4: 스티커 & 날짜 오브젝트]
   renderStickersAndMirrors(ctx, canvas, layout);
 }
 
@@ -2069,7 +2010,7 @@ function renderStrip4Slots(ctx, canvas, pad, gap, fStyle) {
   return centers;
 }
 
-// 🌟 2×2 엽서형 그리드 (계단형 스텝 단차 오프셋 정밀 적용)
+// 2×2 엽서형 그리드 (계단형 스텝 단차 오프셋 정밀 적용)
 function renderGrid4Slots(ctx, canvas, pad, gap, fStyle) {
   let topH = pad; 
   let bottomH = pad; 
@@ -2087,7 +2028,7 @@ function renderGrid4Slots(ctx, canvas, pad, gap, fStyle) {
   const imgH = (canvas.height - topH - bottomH - bannerH - gap) / 2;
   const centers = [];
 
-  // 🌟 [요구사항 1] 계단형 스텝 오프셋 (지그재그 단차: 1번 -28px, 2번 +28px, 3번 +28px, 4번 -28px)
+  // 계단형 스텝 오프셋 (지그재그 단차: 1번 -28px, 2번 +28px, 3번 +28px, 4번 -28px)
   const isStair = (fStyle === 'stair');
   const stairOffsets = isStair ? [-28, 28, 28, -28] : [0, 0, 0, 0];
 
@@ -2099,7 +2040,6 @@ function renderGrid4Slots(ctx, canvas, pad, gap, fStyle) {
   ];
 
   for (let i = 0; i < 4; i++) {
-    // 🌟 심플 테마: 인셋 매거진 그림자 효과
     if (fStyle === 'inset_mag') {
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.35)';
@@ -2116,7 +2056,7 @@ function renderGrid4Slots(ctx, canvas, pad, gap, fStyle) {
   return centers;
 }
 
-// 🌟 1x4, 1x5, 1x6 세로 롱 스트립 전체 Twin 2줄 대칭 레이아웃
+// 1x4, 1x5, 1x6 세로 롱 스트립 전체 Twin 2줄 대칭 레이아웃
 function renderTwinStripSlots(ctx, canvas, pad, gap, cuts) {
   const stripW = (canvas.width / 2) - 24;
   const padX = pad * 0.65;
@@ -2169,7 +2109,7 @@ function renderStrip5Slots(ctx, canvas, pad, gap, fStyle) {
   return centers;
 }
 
-// 5컷 엽서 화보형 레이아웃 (상단 2컷, 가운데 와이드 대형 1컷, 하단 2컷)
+// 5컷 엽서 화보형 레이아웃
 function renderMagazine5Slots(ctx, canvas, pad, gap, fStyle) {
   const topH = 180; const bottomH = 200;
   const availH = canvas.height - topH - bottomH - (gap * 2);
@@ -2179,17 +2119,14 @@ function renderMagazine5Slots(ctx, canvas, pad, gap, fStyle) {
   const fullW = canvas.width - (pad * 2);
   const centers = [];
 
-  // 상단 2컷
   drawFilteredSlotPhoto(ctx, appState.selectedImages[0], pad, topH, halfW, smallH);
   drawFilteredSlotPhoto(ctx, appState.selectedImages[1], pad + halfW + gap, topH, halfW, smallH);
   centers.push({ x: canvas.width - (pad / 2), y: topH + (smallH / 2) });
 
-  // 가운데 메인 와이드 대형 1컷
   const midY = topH + smallH + gap;
   drawFilteredSlotPhoto(ctx, appState.selectedImages[2], pad, midY, fullW, bigH);
   centers.push({ x: canvas.width - (pad / 2), y: midY + (bigH / 2) });
 
-  // 하단 2컷
   const botY = midY + bigH + gap;
   drawFilteredSlotPhoto(ctx, appState.selectedImages[3], pad, botY, halfW, smallH);
   drawFilteredSlotPhoto(ctx, appState.selectedImages[4], pad + halfW + gap, botY, halfW, smallH);
@@ -2228,11 +2165,10 @@ function renderGrid6Slots(ctx, canvas, pad, gap, fStyle) {
   return centers;
 }
 
-// 🌟 테마별 그래픽 오버레이 & 슬롯별 1:1 개별 각인 렌더러
+// 테마별 그래픽 오버레이 & 슬롯별 1:1 개별 각인 & QR 인쇄 렌더러
 function renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout, slotCenters = []) {
   ctx.save();
 
-  // 여백 비례 각인 폰트 크기 계산 (32px ~ 64px)
   const adaptiveFontSize = Math.max(32, Math.min(64, Math.round(pad * 0.65)));
   const textColor = isDark ? '#FFFFFF' : '#0F172A';
   const customFont = appState.engraveFontFamily || 'Playfair Display';
@@ -2258,7 +2194,7 @@ function renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout, sl
       ctx.fillText("▲", pad / 2, centerY);
     }
   }
-  // 2) 🌟 생일파티 (포토이스트 95px 상단 여백 일치 & 텍스트 가독성 대비 조절)
+  // 2) 생일파티
   else if (fStyle === 'birthday') {
     ctx.fillStyle = isDark ? '#FDA4AF' : '#E11D48';
     ctx.font = "900 64px 'Playfair Display', serif";
@@ -2283,7 +2219,7 @@ function renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout, sl
       ctx.fillText(birthdayIcons[i % birthdayIcons.length], pad / 2, centerY);
     }
   }
-  // 3) 🌟 베이스볼 (포토이스트 95px 상단 여백 일치 & 베이스볼 심볼 기둥)
+  // 3) 베이스볼
   else if (fStyle === 'baseball') {
     ctx.fillStyle = isDark ? '#93C5FD' : '#1E3A8A';
     ctx.font = "900 62px 'Black Han Sans', sans-serif";
@@ -2309,12 +2245,11 @@ function renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout, sl
     }
   }
 
-  // 🌟 [요구사항 5] 슬롯별 1:1 개별 각인 렌더링 (각 사진의 세로 중심 높이에 나란히 인쇄)
+  // 슬롯별 1:1 개별 각인 렌더링
   if (slotCenters && slotCenters.length > 0) {
     slotCenters.forEach((center, idx) => {
       let text = (appState.slotEngraveTexts[idx] || '').trim();
       
-      // 입력값이 비어있을 경우 프리미엄 테마 전용 기본 문구 자동 매핑
       if (!text) {
         if (fStyle === 'birthday') text = ['HAPPY', 'BIRTHDAY', 'WISH', 'CELEBRATE', 'LOVE', 'TODAY'][idx] || '';
         else if (fStyle === 'baseball') text = ['PLAY BALL', 'HOMERUN', 'MVP', 'CHAMPION', 'VICTORY', 'ACE'][idx] || '';
@@ -2334,6 +2269,19 @@ function renderThemeOverlayGraphics(ctx, canvas, pad, fStyle, isDark, layout, sl
         ctx.restore();
       }
     });
+  }
+
+  // 🌟 [v17.4 Pro] 독립 토글 QR코드 각인 인쇄 (우측 하단 Safe Zone)
+  if (appState.showQrSticker && appState.qrCachedDataUrl) {
+    const qrSize = Math.max(75, Math.min(110, Math.round(pad * 1.5)));
+    const qrX = canvas.width - pad - qrSize - 10;
+    const qrY = canvas.height - (layout === 'strip' ? 140 : 120);
+
+    ctx.save();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(qrX - 4, qrY - 4, qrSize + 8, qrSize + 8);
+    ctx.drawImage(appState.qrCachedDataUrl, qrX, qrY, qrSize, qrSize);
+    ctx.restore();
   }
 
   ctx.restore();
@@ -2453,11 +2401,7 @@ function drawSingleSticker(ctx, st) {
     ctx.globalAlpha = st.opacity;
   }
 
-  // 🌟 실물 SVG 이미지 스티커 및 캔버스 부착형 QR 스티커 렌더링
-  if (st.type === 'image' && st.imgElement) {
-    const half = st.size / 2;
-    ctx.drawImage(st.imgElement, -half, -half, st.size, st.size);
-  } else if (st.type === 'text') {
+  if (st.type === 'text') {
     const fontName = st.fontFamily || 'Pretendard'; 
     ctx.font = `900 ${st.size}px '${fontName}', sans-serif`; 
     ctx.fillStyle = st.color || '#FFFFFF'; 
@@ -2574,10 +2518,7 @@ function updateFloatingLoupe(touchX, touchY, canvasCoordX, canvasCoordY, isDragg
     lCtx.rotate(((st.rotation || 0) * Math.PI) / 180);
     lCtx.scale(autoScale, autoScale);
 
-    if (st.type === 'image' && st.imgElement) {
-      const half = st.size / 2;
-      lCtx.drawImage(st.imgElement, -half, -half, st.size, st.size);
-    } else if (st.type === 'text') {
+    if (st.type === 'text') {
       lCtx.font = `900 ${st.size}px '${st.fontFamily || 'Pretendard'}', sans-serif`;
       lCtx.fillStyle = st.color || '#1E293B';
       lCtx.textAlign = 'center';
@@ -2701,7 +2642,6 @@ function initCanvasInteractions() {
       let targetX = c.x - appState.dragStartPos.x;
       let targetY = c.y - appState.dragStartPos.y;
 
-      // 🌟 마그네틱 자석 스냅 가이드
       const snapThreshold = 35;
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
@@ -3062,7 +3002,7 @@ function updateFavoriteButtonUI() {
 }
 
 // ========================================================
-// 18. 🌟 15Mbps 모션컷 & 3배속 모션컷 타임랩스(Full) 엔진
+// 18. 🌟 15Mbps 모션컷 & 4배속 모션컷 타임랩스(Full) 엔진
 // ========================================================
 async function generateMotionCutVideo() {
   if (!appState.isRegisteredUser) {
@@ -3205,7 +3145,7 @@ async function generateMotionCutVideo() {
   }
 }
 
-// 🌟 [요구사항 12] 3배속 모션컷 타임랩스(Full) 엔진
+// 🌟 [요구사항 7] 4.0배속 모션컷 타임랩스(Full) 엔진
 async function generateTimelapseFullVideo() {
   if (!appState.fullSessionVideoBlob) {
     alert("촬영 전 과정 녹화 데이터가 준비되지 않았습니다. 부스에서 6컷 촬영을 완료해 주세요.");
@@ -3215,7 +3155,7 @@ async function generateTimelapseFullVideo() {
   const btn = document.getElementById('btnTimelapseVideo');
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>3x 가속 중</span>`;
+    btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>4x 가속 중</span>`;
   }
   if (window.lucide) lucide.createIcons();
 
@@ -3227,7 +3167,7 @@ async function generateTimelapseFullVideo() {
 
     await new Promise((res) => {
       v.onloadedmetadata = () => {
-        v.playbackRate = 3.0; // 🌟 3배속 가속 재생
+        v.playbackRate = 4.0; // 🌟 4.0배속 가속 재생
         v.play().then(res).catch(res);
       };
     });
@@ -3255,16 +3195,16 @@ async function generateTimelapseFullVideo() {
       const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
       const blob = new Blob(chunks, { type: mimeType });
       currentGeneratedVideoBlob = blob;
-      currentGeneratedVideoFileName = `[포토이스트]_모션컷_타임랩스_Full_${Date.now()}.${ext}`;
+      currentGeneratedVideoFileName = `[포토이스트]_모션컷_타임랩스_Full_4x_${Date.now()}.${ext}`;
 
       const modalTitle = document.getElementById('videoModalTitle');
-      if (modalTitle) modalTitle.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-amber-500 mr-1"></i> 모션컷 타임랩스 (Full 3x) 완료`;
+      if (modalTitle) modalTitle.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-amber-500 mr-1"></i> 모션컷 타임랩스 (Full 4x) 완료`;
 
       openVideoResultModal(blob);
 
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = `<i data-lucide="zap" class="w-3.5 h-3.5"></i><span>3x타임랩스</span>`;
+        btn.innerHTML = `<i data-lucide="zap" class="w-3.5 h-3.5"></i><span>4x타임랩스</span>`;
       }
       if (window.lucide) lucide.createIcons();
 
@@ -3292,7 +3232,7 @@ async function generateTimelapseFullVideo() {
     alert("타임랩스 생성 실패: " + err.message);
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = `<i data-lucide="zap" class="w-3.5 h-3.5"></i><span>3x타임랩스</span>`;
+      btn.innerHTML = `<i data-lucide="zap" class="w-3.5 h-3.5"></i><span>4x타임랩스</span>`;
     }
     if (window.lucide) lucide.createIcons();
   }
@@ -3325,7 +3265,7 @@ function drawVideoSlot(ctx, v, x, y, w, h) {
   ctx.restore();
 }
 
-// 🌟 [요구사항 9] 스마트 듀얼 리샘플러 탑재 (500KB 경량화 & 지수 백오프 자동 재시도)
+// 스마트 듀얼 리샘플러 탑재 (500KB 경량화 & 지수 백오프 자동 재시도)
 async function generateImageQRCode() {
   const btn = document.getElementById('btnSaveQR'); 
   if (btn) { 
@@ -3747,7 +3687,6 @@ async function sendCustomerBotMessage() {
   }, 400);
 }
 
-// 🌟 관리자 설정 센터 즉시 진입
 function promptAdminMode(e) {
   if (e && e.preventDefault) { e.preventDefault(); e.stopPropagation(); }
 
@@ -3958,10 +3897,10 @@ function getStoredNotices() {
   }
   if (!list || list.length === 0) {
     list = [{ 
-      id: 'v17_3_init', 
+      id: 'v17_4_init', 
       date: getFormattedTodayDate(), 
       version: APP_VERSION, 
-      content: 'v17.3 Pro: 모션컷, 3배속 타임랩스, 1:1 슬롯별 각인 & QR 스티커 업데이트 완료!' 
+      content: 'v17.4 Pro: 모션컷, 4x 타임랩스, 1:1 슬롯별 각인 & QR 인쇄 체크박스 업데이트 완료!' 
     }];
   }
   return list;
@@ -3974,8 +3913,8 @@ function renderMainNotices() {
   area.classList.remove('hidden');
   container.innerHTML = `
     <div class="bg-white/95 border border-rose-100 rounded-xl px-2.5 py-1.5 flex items-center justify-between text-left">
-      <span class="bg-theme text-white text-[9px] font-black px-1.5 py-0.5 rounded shrink-0">v17.3 Pro</span>
-      <p class="text-[11px] font-bold text-slate-800 truncate ml-2">모션컷, 3배속 타임랩스, 1:1 슬롯별 각인 & QR 스티커 업데이트!</p>
+      <span class="bg-theme text-white text-[9px] font-black px-1.5 py-0.5 rounded shrink-0">v17.4 Pro</span>
+      <p class="text-[11px] font-bold text-slate-800 truncate ml-2">모션컷, 4x 타임랩스, 1:1 슬롯별 각인 & QR 인쇄 업데이트!</p>
     </div>
   `;
 }
@@ -4087,6 +4026,7 @@ function saveSessionStateToStorage() {
       stickers: appState.stickers,
       slotEngraveTexts: appState.slotEngraveTexts,
       engraveFontFamily: appState.engraveFontFamily,
+      showQrSticker: appState.showQrSticker,
       images: appState.selectedImages.map(img => img ? img.src : null)
     };
     sessionStorage.setItem('chueok_active_session', JSON.stringify(backupData));
@@ -4119,6 +4059,7 @@ function restorePreviousSession() {
     appState.stickers = data.stickers || [];
     appState.slotEngraveTexts = data.slotEngraveTexts || ["", "", "", "", "", ""];
     appState.engraveFontFamily = data.engraveFontFamily || 'Playfair Display';
+    appState.showQrSticker = data.showQrSticker || false;
 
     const imgPromises = data.images.map(src => new Promise(res => {
       if (!src) return res(null);
@@ -4131,6 +4072,11 @@ function restorePreviousSession() {
       appState.selectedImages = imgs.filter(Boolean);
       showScreen('screenEdit');
       renderSlotEngraveInputs();
+
+      const qrCheck = document.getElementById('checkShowQr');
+      if (qrCheck) qrCheck.checked = appState.showQrSticker;
+      if (appState.showQrSticker) toggleQrSticker(true);
+
       renderStrip();
     });
   } catch (e) {
@@ -4197,8 +4143,8 @@ function saveStateForUndo() {
     cutMode: appState.cutMode, stickers: appState.stickers, layout: appState.layout, frameStyle: appState.frameStyle,
     frameThickness: appState.frameThickness, frameColor: appState.frameColor, activeFilter: appState.activeFilter,
     filters: appState.filters, typography: appState.typography, showDate: appState.showDate,
-    isCurrentFavorite: appState.isCurrentFavorite, slotEngraveTexts: appState.slotEngraveTexts,
-    engraveFontFamily: appState.engraveFontFamily
+    showQrSticker: appState.showQrSticker, isCurrentFavorite: appState.isCurrentFavorite, 
+    slotEngraveTexts: appState.slotEngraveTexts, engraveFontFamily: appState.engraveFontFamily
   });
   historyStack.push(snapshot); 
   if (historyStack.length > 25) historyStack.shift(); 
@@ -4211,8 +4157,8 @@ function undo() {
     cutMode: appState.cutMode, stickers: appState.stickers, layout: appState.layout, frameStyle: appState.frameStyle,
     frameThickness: appState.frameThickness, frameColor: appState.frameColor, activeFilter: appState.activeFilter,
     filters: appState.filters, typography: appState.typography, showDate: appState.showDate,
-    isCurrentFavorite: appState.isCurrentFavorite, slotEngraveTexts: appState.slotEngraveTexts,
-    engraveFontFamily: appState.engraveFontFamily
+    showQrSticker: appState.showQrSticker, isCurrentFavorite: appState.isCurrentFavorite, 
+    slotEngraveTexts: appState.slotEngraveTexts, engraveFontFamily: appState.engraveFontFamily
   });
   redoStack.push(currentSnap);
   applySnapshot(JSON.parse(historyStack.pop()));
@@ -4224,8 +4170,8 @@ function redo() {
     cutMode: appState.cutMode, stickers: appState.stickers, layout: appState.layout, frameStyle: appState.frameStyle,
     frameThickness: appState.frameThickness, frameColor: appState.frameColor, activeFilter: appState.activeFilter,
     filters: appState.filters, typography: appState.typography, showDate: appState.showDate,
-    isCurrentFavorite: appState.isCurrentFavorite, slotEngraveTexts: appState.slotEngraveTexts,
-    engraveFontFamily: appState.engraveFontFamily
+    showQrSticker: appState.showQrSticker, isCurrentFavorite: appState.isCurrentFavorite, 
+    slotEngraveTexts: appState.slotEngraveTexts, engraveFontFamily: appState.engraveFontFamily
   });
   historyStack.push(currentSnap);
   applySnapshot(JSON.parse(redoStack.pop()));
@@ -4242,12 +4188,15 @@ function applySnapshot(snap) {
   appState.filters = snap.filters; 
   appState.typography = snap.typography;
   appState.showDate = snap.showDate !== undefined ? snap.showDate : true;
+  appState.showQrSticker = snap.showQrSticker || false;
   appState.isCurrentFavorite = snap.isCurrentFavorite || false;
   appState.slotEngraveTexts = snap.slotEngraveTexts || ["", "", "", "", "", ""];
   appState.engraveFontFamily = snap.engraveFontFamily || 'Playfair Display';
   
   const dateCheck = document.getElementById('checkShowDate');
   if (dateCheck) dateCheck.checked = appState.showDate;
+  const qrCheck = document.getElementById('checkShowQr');
+  if (qrCheck) qrCheck.checked = appState.showQrSticker;
   const fontSel = document.getElementById('engraveFontSelect');
   if (fontSel) fontSel.value = appState.engraveFontFamily;
 
@@ -4295,7 +4244,6 @@ function initDynamicUI() {
     textStickerGrid.innerHTML = texts.map(t => `<button onclick="addTextSticker('${t}')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[10px] rounded border border-slate-300 shrink-0 cursor-pointer active:scale-95 transition">${t}</button>`).join('');
   }
 
-  // 🌟 [요구사항 11] 24종 확장 프레임 컬러 팔레트 렌더링
   const extGrid = document.getElementById('frameColorGridExtended');
   if (extGrid) {
     extGrid.innerHTML = EXTENDED_PALETTE_COLORS.map(c => `
@@ -4334,14 +4282,13 @@ window.onThicknessChange = onThicknessChange;
 window.handleFilterClick = handleFilterClick;
 window.onFineTuneSliderChange = onFineTuneSliderChange;
 window.toggleDateObject = toggleDateObject;
+window.toggleQrSticker = toggleQrSticker;
 
 window.onSlotEngraveTextChange = onSlotEngraveTextChange;
 window.onEngraveFontChange = onEngraveFontChange;
 window.applyDefaultSideEngrave = applyDefaultSideEngrave;
 window.clearSideEngrave = clearSideEngrave;
 
-window.addSvgPropSticker = addSvgPropSticker;
-window.addQrCodeStickerToCanvas = addQrCodeStickerToCanvas;
 window.addDirectTextSticker = addDirectTextSticker;
 window.addTextSticker = addTextSticker;
 window.clearAllStickers = clearAllStickers;
