@@ -84,30 +84,6 @@ body {
   transform: scale(1.03);
 }
 
-/* 착용 소품 칩 스타일 */
-.prop-chip {
-  background-color: #ffffff;
-  border: 1px solid #fecdd3;
-  color: #1e293b;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 9999px;
-  white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-}
-
-.prop-chip:hover {
-  background-color: #fff1f2;
-  border-color: var(--theme-color);
-}
-
-.prop-chip:active {
-  transform: scale(0.95);
-}
-
 /* 15열 이모티콘 그리드 */
 .emoji-grid-15 {
   display: grid !important;
