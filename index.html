@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>포토이스트 (Photoist) Studio Pro v17.3 Pro</title>
+  <title>포토이스트 (Photoist) Studio Pro v17.4 Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -15,7 +15,7 @@
   <!-- 파일 업로드 인풋 -->
   <input type="file" id="galleryInput" accept="image/*" multiple class="hidden" onchange="handleGalleryUpload(event)">
 
-  <!-- 1. 카메라 회전 안내 오버레이 (반투명 카메라 비침 & 우측 상단 닫기 X 버튼) -->
+  <!-- 카메라 회전 안내 오버레이 (반투명 카메라 비침 & 우측 상단 닫기 X 버튼) -->
   <div id="orientationWarningOverlay" class="hidden fixed inset-0 z-[100] bg-black/40 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center text-white">
     <button onclick="dismissOrientationWarning()" class="absolute top-5 right-5 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center active:scale-90 transition">
       <i data-lucide="x" class="w-6 h-6"></i>
@@ -30,7 +30,7 @@
   </div>
 
   <!-- ========================================================
-        화면 1: 메인 홈 화면 (상단 딤드 그라데이션 완전 제거)
+        화면 1: 메인 홈 화면
   ======================================================== -->
   <main id="screenHome" class="absolute inset-0 z-10 w-full flex flex-col bg-white overflow-hidden">
     <div class="max-w-md w-full mx-auto flex flex-col h-full px-4 py-3 justify-between relative">
@@ -42,7 +42,7 @@
           <div class="flex items-center space-x-1.5">
             <span class="text-xl font-black tracking-tight text-slate-900">포토이스트</span>
             <span class="bg-rose-500 text-white text-[11px] font-black px-1.5 py-0.5 rounded shadow-sm">Pro</span>
-            <span id="appVersionBadge" class="text-xs text-theme font-extrabold tracking-tighter">v17.3 Pro</span>
+            <span id="appVersionBadge" class="text-xs text-theme font-extrabold tracking-tighter">v17.4 Pro</span>
           </div>
         </div>
 
@@ -57,7 +57,7 @@
               <span>회원가입</span>
             </button>
 
-            <!-- 정회원 로그인 후 프로필 배지 (터치 시 마이페이지 오픈) -->
+            <!-- 정회원 로그인 후 프로필 배지 -->
             <div id="userProfileBadge" class="hidden items-center space-x-1 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full cursor-pointer hover:bg-rose-100 active:scale-95 transition" onclick="openMyProfileModal()">
               <span class="w-1.5 h-1.5 rounded-full bg-theme animate-ping"></span>
               <span id="userProfileName" class="text-[10px] font-black text-theme truncate max-w-[65px]">회원</span>
@@ -93,7 +93,7 @@
         <div id="noticeListContainer" class="space-y-1"></div>
       </div>
 
-      <!-- 규격 선택 카드 (가로 촬영 모드 스트립형 / 세로 촬영 모드 2x2 엽서형) -->
+      <!-- 규격 선택 카드 -->
       <section class="flex-1 flex flex-col justify-center my-auto space-y-3 w-full max-w-sm mx-auto">
         <div class="text-center space-y-0.5">
           <h3 class="text-sm font-black text-slate-900">촬영할 사진 모드를 선택해 주세요</h3>
@@ -178,14 +178,14 @@
         </div>
 
         <footer class="text-center text-[10px] text-slate-400 pb-0.5">
-          포토이스트 (Photoist) Studio Pro v17.3 Pro
+          포토이스트 (Photoist) Studio Pro v17.4 Pro
         </footer>
       </div>
     </div>
   </main>
 
   <!-- ========================================================
-        화면 2: 촬영 화면 (아이패드 4:3 뷰포트 잘림 해결 & 2x2 풀화면 고정)
+        화면 2: 촬영 화면 (뷰포트 100dvh 고정 & 3단 플렉스 격리)
   ======================================================== -->
   <section id="screenLiveShoot" class="hidden fixed inset-0 w-screen h-screen bg-black flex flex-col items-center justify-between z-50 overflow-hidden">
     <div id="flashOverlay" class="hidden absolute inset-0 bg-white z-[60] pointer-events-none"></div>
@@ -202,7 +202,7 @@
       </div>
     </div>
 
-    <!-- 상단 바 -->
+    <!-- 1단: 상단 바 -->
     <div class="relative w-full z-20 flex items-center justify-between p-4 pb-2 shrink-0">
       <div class="flex items-center space-x-2">
         <span id="liveProgressBadge" class="bg-theme text-white font-black text-xs px-3.5 py-1.5 rounded-full shadow-lg">구도 대기실</span>
@@ -214,18 +214,20 @@
       </div>
     </div>
 
-    <!-- 촬영 중 카운트다운 레이어 -->
-    <div id="activeShootingLayer" class="hidden absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
-      <span id="liveCountdownText" class="stroke-countdown-translucent text-[130px] font-black scale-100 transition-all">6</span>
-      <div class="mt-2 text-center px-4">
-        <div class="inline-flex items-center space-x-1.5 bg-black/60 backdrop-blur-md border border-white/20 px-4 py-1.5 rounded-full shadow-lg">
-          <span id="poseGuideEmoji" class="text-base">🫂</span>
-          <p id="poseGuideText" class="text-sm sm:text-base font-black text-white tracking-tight">어깨동무하고 찰칵!</p>
+    <!-- 2단: 중앙 뷰파인더 & 카운트다운 레이어 -->
+    <div class="relative flex-1 w-full min-h-0 flex items-center justify-center overflow-hidden z-20 pointer-events-none">
+      <div id="activeShootingLayer" class="hidden flex flex-col items-center justify-center">
+        <span id="liveCountdownText" class="stroke-countdown-translucent text-[130px] font-black scale-100 transition-all">6</span>
+        <div class="mt-2 text-center px-4">
+          <div class="inline-flex items-center space-x-1.5 bg-black/60 backdrop-blur-md border border-white/20 px-4 py-1.5 rounded-full shadow-lg">
+            <span id="poseGuideEmoji" class="text-base">🫂</span>
+            <p id="poseGuideText" class="text-sm sm:text-base font-black text-white tracking-tight">어깨동무하고 찰칵!</p>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 아이패드 대응 하단 통합 컨트롤 바 (mb-safe & flex-shrink-0 구조) -->
+    <!-- 3단: 하단 컨트롤 바 (아이패드/모바일 잘림 완전 방지) -->
     <div class="relative w-full z-30 flex flex-col items-center px-4 pb-4 space-y-2 shrink-0 mb-safe">
       <!-- 대기실 컨트롤 바 -->
       <div id="waitingRoomControls" class="w-full max-w-sm flex flex-col items-center space-y-2 pointer-events-auto">
@@ -263,7 +265,7 @@
   <section id="screenPick" class="hidden absolute inset-0 z-30 w-full flex flex-col lg:flex-row items-center justify-between p-3 sm:p-5 gap-4 bg-white text-slate-900 overflow-y-auto touch-scroll">
     <div class="w-full lg:w-5/12 flex flex-col items-center justify-center shrink-0">
       
-      <!-- 컷수 선택 탭 (4컷 / 5컷 / 6컷) -->
+      <!-- 컷수 선택 탭 -->
       <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-2xl mb-2.5 shadow-2xs">
         <button onclick="changeFrameCutMode(4)" id="btnCutMode4" class="px-3 py-1 rounded-xl text-xs font-black bg-white text-slate-900 shadow-xs">4컷 모드</button>
         <button onclick="changeFrameCutMode(5)" id="btnCutMode5" class="px-3 py-1 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-900">5컷 모드</button>
@@ -325,12 +327,12 @@
   </section>
 
   <!-- ========================================================
-        화면 4: 스튜디오 에디터 (스플릿 리사이저 & 1:1 개별 각인 & QR 스티커 & 소품 팩)
+        화면 4: 스튜디오 에디터 (캔버스 55%:도구 45% 최적 분할)
   ======================================================== -->
   <section id="screenEdit" class="hidden absolute inset-0 z-30 w-full flex flex-col responsive-editor-layout bg-white overflow-hidden pointer-events-auto">
     
-    <!-- 캔버스 작업대 -->
-    <div id="editorCanvasPane" class="w-full h-[52%] editor-canvas-pane flex flex-col bg-[#F6F3EC] relative z-10 shrink-0 overflow-hidden">
+    <!-- 캔버스 작업대 (세로 모드 55% 확보) -->
+    <div id="editorCanvasPane" class="w-full h-[55%] editor-canvas-pane flex flex-col bg-[#F6F3EC] relative z-10 shrink-0 overflow-hidden">
       <!-- 줌 툴바 & [◀ 사진 다시 고르기] 네비게이션 버튼 -->
       <div class="absolute top-2 left-2 z-20 flex items-center space-x-1.5">
         <button onclick="returnToPickScreen()" id="btnReturnToPick" class="bg-white/95 backdrop-blur-md hover:bg-white text-slate-800 text-[11px] font-black px-2.5 py-1 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-1 active:scale-95 transition" title="사진 재선택">
@@ -347,7 +349,7 @@
 
       <div id="canvasViewport" class="flex-1 w-full h-full overflow-hidden flex items-center justify-center p-3 touch-none select-none relative">
         <div id="canvasScaleWrapper" class="flex items-center justify-center relative">
-          <canvas id="photoCanvas" class="max-h-[46vh] responsive-canvas-height w-auto h-auto object-contain shadow-2xl bg-white"></canvas>
+          <canvas id="photoCanvas" class="max-h-[50dvh] responsive-canvas-height w-auto h-auto object-contain shadow-2xl bg-white"></canvas>
           
           <!-- 마그네틱 자석 스냅 가이드라인 -->
           <div id="magneticGuideX" class="hidden absolute left-0 right-0 border-t-2 border-theme border-dashed pointer-events-none z-30"></div>
@@ -366,12 +368,12 @@
     </div>
 
     <!-- 가변 스플릿 리사이저 바 (Pointer Events API 탑재) -->
-    <div id="editorSplitResizer" class="h-3.5 w-full editor-split-resizer bg-slate-200 hover:bg-theme/40 active:bg-theme transition-colors flex items-center justify-center shrink-0 z-30 select-none shadow-xs">
+    <div id="editorSplitResizer" class="h-3.5 w-full editor-split-resizer bg-slate-200 hover:bg-theme/40 active:bg-theme transition-colors flex items-center justify-center shrink-0 z-30 select-none shadow-xs touch-none">
       <div class="w-8 h-1 resizer-bar-indicator bg-slate-400 rounded-full"></div>
     </div>
 
-    <!-- 에디터 컨트롤 패널 -->
-    <div id="editorControlPane" class="flex-1 h-[48%] editor-control-pane flex flex-col bg-white overflow-hidden relative z-0">
+    <!-- 에디터 컨트롤 패널 (세로 모드 45% 할당) -->
+    <div id="editorControlPane" class="flex-1 h-[45%] editor-control-pane flex flex-col bg-white overflow-hidden relative z-0">
       <div class="flex items-center justify-between px-4 py-2 border-b border-slate-100 shrink-0 bg-white z-20 shadow-2xs">
         <div class="flex items-center space-x-2">
           <h2 class="text-xs font-black text-slate-900 flex items-center">
@@ -388,7 +390,7 @@
 
       <div class="flex-1 overflow-y-auto touch-scroll p-3.5 space-y-3">
         
-        <!-- Twin 2줄 대칭 미러링 선택 바 (1x4, 1x5, 1x6 세로 스트립형 전용) -->
+        <!-- Twin 2줄 대칭 미러링 선택 바 (세로 스트립형 전용) -->
         <div id="layoutSelectionRow" class="hidden">
           <label class="block text-[10px] font-bold text-slate-600 mb-1">출력 레이아웃</label>
           <div class="grid grid-cols-2 gap-1.5">
@@ -512,41 +514,29 @@
           </div>
         </div>
 
-        <!-- 프레임 여백 및 날짜 오브젝트 체크 (여백 비례 32~64px 자동 스케일링 연동) -->
-        <div class="flex items-center justify-between space-x-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-          <div class="flex items-center space-x-1.5 shrink-0">
+        <!-- 프레임 여백 및 독립 토글 체크박스 (날짜 표시 & 사진 다운로드 QR 인쇄) -->
+        <div class="flex flex-col space-y-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+          <div class="flex items-center justify-between">
             <span class="text-[10px] font-bold text-slate-600">여백 (각인크기 연동)</span>
-            <input type="range" id="sliderThickness" min="30" max="80" value="60" oninput="onThicknessChange(this.value)" class="w-20 accent-theme h-1 bg-slate-200 rounded">
+            <input type="range" id="sliderThickness" min="30" max="80" value="60" oninput="onThicknessChange(this.value)" class="w-32 accent-theme h-1 bg-slate-200 rounded">
           </div>
-          <label class="flex items-center space-x-1.5 cursor-pointer text-[10px] font-bold text-slate-700 bg-white px-2 py-1 rounded-lg border border-slate-200">
-            <input type="checkbox" id="checkShowDate" checked onchange="toggleDateObject(this.checked)" class="w-3.5 h-3.5 rounded accent-theme">
-            <span>📅 날짜 표시</span>
-          </label>
+          <div class="flex items-center space-x-2 pt-1 border-t border-slate-200/60">
+            <label class="flex-1 flex items-center space-x-1.5 cursor-pointer text-[10px] font-bold text-slate-700 bg-white px-2 py-1.5 rounded-lg border border-slate-200">
+              <input type="checkbox" id="checkShowDate" checked onchange="toggleDateObject(this.checked)" class="w-3.5 h-3.5 rounded accent-theme">
+              <span>📅 날짜 표시</span>
+            </label>
+            <label class="flex-1 flex items-center space-x-1.5 cursor-pointer text-[10px] font-bold text-slate-700 bg-white px-2 py-1.5 rounded-lg border border-slate-200">
+              <input type="checkbox" id="checkShowQr" onchange="toggleQrSticker(this.checked)" class="w-3.5 h-3.5 rounded accent-theme">
+              <span>📱 QR 인쇄</span>
+            </label>
+          </div>
         </div>
 
-        <!-- 실물 고화질 벡터 SVG 소품 스탬프 & 반투명 하트 & QR 스티커 -->
+        <!-- 텍스트 스티커 및 클래식 이모티콘 팩 -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <label class="text-[10px] font-bold text-slate-700">🎭 실물 착용 소품 & QR 스티커</label>
+            <label class="text-[10px] font-bold text-slate-700">✍️ 텍스트 / 이모티콘 스티커</label>
             <button onclick="clearAllStickers()" class="text-[9px] text-theme hover:underline">전체 비우기</button>
-          </div>
-
-          <!-- 실물 벡터 SVG 소품 스탬프 바 -->
-          <div class="mb-1.5 p-1.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
-            <!-- 캔버스 부착형 QR코드 스티커 생성 버튼 -->
-            <button onclick="addQrCodeStickerToCanvas()" id="btnQrSticker" class="prop-chip bg-emerald-600 text-white border-emerald-500 font-black flex items-center space-x-1 shadow-2xs">
-              <i data-lucide="qr-code" class="w-3 h-3"></i>
-              <span>+ QR 스티커</span>
-            </button>
-            <button onclick="addSvgPropSticker('headband_ribbon', 110)" class="prop-chip">🎀 리본머리띠</button>
-            <button onclick="addSvgPropSticker('party_hat', 100)" class="prop-chip">🎂 고깔모자</button>
-            <button onclick="addSvgPropSticker('crown_gold', 100)" class="prop-chip">👑 왕관</button>
-            <button onclick="addSvgPropSticker('bunny_ears', 120)" class="prop-chip">🐰 토끼귀</button>
-            <button onclick="addSvgPropSticker('cat_whiskers', 90)" class="prop-chip">🐱 고양이수염</button>
-            <button onclick="addSvgPropSticker('glasses_sunglasses', 110)" class="prop-chip">🕶️ 힙스터선글라스</button>
-            <button onclick="addSvgPropSticker('glasses_geek', 105)" class="prop-chip">👓 긱시크안경</button>
-            <button onclick="addSvgPropSticker('heart_tint_pink', 120, 0.45)" class="prop-chip text-rose-500 font-black">💖 반투명하트</button>
-            <button onclick="addSvgPropSticker('heart_tint_white', 120, 0.45)" class="prop-chip text-slate-500 font-black">🤍 반투명화이트</button>
           </div>
 
           <div class="flex items-center space-x-1.5 mb-1.5">
@@ -594,7 +584,7 @@
           </div>
         </div>
 
-        <!-- 하단 액션 바: [⭐ 추억네컷 찜] + [모션컷] + [모션컷 타임랩스(Full)] + [QR 다운] -->
+        <!-- 하단 액션 바: [⭐ 추억네컷 찜] + [모션컷] + [4x타임랩스] + [QR 다운] -->
         <div class="pt-2 border-t border-slate-200">
           <div class="grid grid-cols-6 gap-1">
             <button onclick="toggleFavoriteStrip()" id="btnFavoriteStrip" class="bg-rose-500 hover:bg-rose-600 text-white font-black py-2.5 rounded-xl text-[9px] flex flex-col items-center justify-center space-y-0.5 shadow active:scale-95 transition">
@@ -607,7 +597,7 @@
             </button>
             <button onclick="generateTimelapseFullVideo()" id="btnTimelapseVideo" class="bg-amber-600 hover:bg-amber-500 text-white font-black py-2.5 rounded-xl text-[8px] flex flex-col items-center justify-center space-y-0.5 shadow active:scale-95 transition">
               <i data-lucide="zap" class="w-3.5 h-3.5"></i>
-              <span>3x타임랩스</span>
+              <span>4x타임랩스</span>
             </button>
             <button onclick="autoSavePDF()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-[9px] flex flex-col items-center justify-center space-y-0.5 shadow active:scale-95 transition">
               <i data-lucide="printer" class="w-3.5 h-3.5"></i>
@@ -628,7 +618,7 @@
   </section>
 
   <!-- ========================================================
-        모달 1: 마이페이지 (PIN 삭제 & 프로그램 전체 UI 10종 테마 선택)
+        모달 1: 마이페이지
   ======================================================== -->
   <div id="myProfileModal" class="hidden fixed inset-0 z-[75] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4">
@@ -639,7 +629,6 @@
         <button onclick="closeMyProfileModal()" class="text-slate-400 hover:text-slate-700 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
-      <!-- 요약 프로필 -->
       <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between text-xs">
         <div>
           <span class="text-[10px] text-slate-400 font-bold">접속 계정</span>
@@ -651,7 +640,7 @@
         </div>
       </div>
 
-      <!-- 프로그램 전체 UI 10종 메인 테마 색상 선택기 -->
+      <!-- 10종 UI 테마 색상 선택기 -->
       <div class="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
         <div class="flex items-center justify-between">
           <label class="text-[11px] font-bold text-slate-700">🎨 앱 전체 UI 테마 색상</label>
@@ -742,7 +731,7 @@
         </div>
       </div>
 
-      <!-- B. 회원가입 폼 (이름+생년월일 6자리 중복 차단 & 비밀번호 확인) -->
+      <!-- B. 회원가입 폼 -->
       <div id="authFormRegister" class="hidden space-y-2">
         <div>
           <label class="text-[10px] font-bold text-slate-500">이름 (실명)</label>
@@ -769,7 +758,7 @@
           </div>
         </div>
         <div>
-          <label class="text-[10px] font-bold text-slate-500">비밀번호 (6자 이상, 영문+숫자 혼합)</label>
+          <label class="text-[10px] font-bold text-slate-500">비밀번호 (6자 이상, 영문+숫자)</label>
           <input type="password" id="regUserPw" placeholder="비밀번호" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold outline-none focus:border-theme mt-0.5">
         </div>
         <div>
@@ -805,7 +794,7 @@
         </button>
       </div>
 
-      <!-- D. 비밀번호 재설정 폼 (일치 검증 후 직접 새 비밀번호 입력) -->
+      <!-- D. 비밀번호 직접 재설정 폼 -->
       <div id="authFormResetPw" class="hidden space-y-2">
         <p class="text-[11px] text-slate-600 font-bold leading-relaxed">회원 정보 일치 시 원하는 새 비밀번호로 즉시 재설정됩니다.</p>
         <div>
@@ -871,7 +860,7 @@
   </div>
 
   <!-- ========================================================
-        화면 5: 이용 후기 (screenBoard)
+        화면 5: 이용 후기
   ======================================================== -->
   <section id="screenBoard" class="hidden absolute inset-0 z-40 w-full flex flex-col bg-slate-50 overflow-hidden">
     <div class="max-w-md w-full mx-auto flex flex-col h-full bg-white shadow-xl">
@@ -918,7 +907,7 @@
   </section>
 
   <!-- ========================================================
-        모달 5: 고객소리함 (customerBotModal)
+        모달 5: 고객소리함
   ======================================================== -->
   <div id="customerBotModal" class="hidden fixed inset-0 z-[70] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl w-full max-w-sm h-[80vh] max-h-[580px] shadow-2xl flex flex-col overflow-hidden">
@@ -956,7 +945,7 @@
     </div>
   </div>
 
-  <!-- 비디오 모달 (모션컷 & 모션컷 타임랩스 통합 플레이어) -->
+  <!-- 비디오 모달 (모션컷 & 4x타임랩스) -->
   <div id="videoResultModal" class="hidden absolute inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
     <div class="bg-white rounded-3xl p-4 sm:p-5 max-w-md w-full shadow-2xl flex flex-col items-center space-y-3">
       <div class="flex items-center justify-between w-full border-b border-slate-100 pb-2">
@@ -984,7 +973,7 @@
   </div>
 
   <!-- ========================================================
-        화면 6: QR코드 스캔 다운로드 화면 (screenResult)
+        화면 6: QR코드 스캔 다운로드 화면
   ======================================================== -->
   <section id="screenResult" class="hidden absolute inset-0 z-50 w-full flex flex-col items-center justify-center px-4 bg-slate-50 text-center overflow-y-auto">
     <div class="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-sm shadow-2xl flex flex-col items-center my-auto">
