@@ -3265,7 +3265,6 @@ function drawVideoSlot(ctx, v, x, y, w, h) {
   ctx.restore();
 }
 
-// 스마트 듀얼 리샘플러 탑재 (500KB 경량화 & 지수 백오프 자동 재시도)
 async function generateImageQRCode() {
   const btn = document.getElementById('btnSaveQR'); 
   if (btn) { 
@@ -3305,6 +3304,26 @@ async function generateImageQRCode() {
     attempt++;
     await new Promise(r => setTimeout(r, 2000));
   }
+
+  if (btn) { 
+    btn.disabled = false; 
+    btn.innerHTML = `<i data-lucide="qr-code" class="w-3.5 h-3.5"></i><span>QR 다운</span>`; 
+  }
+  if (window.lucide) lucide.createIcons();
+
+  if (res && res.success && res.fileId) {
+    // 🌟 [교체된 핵심 로직] 구글드라이브 직접 연결 대신 새로 만든 viewer.html 주소로 생성
+    const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+    const timeStamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+    const videoId = (appState && appState.currentVideoFileId) ? appState.currentVideoFileId : ''; 
+
+    // viewer.html에 사진ID(p), 영상ID(v), 촬영시각(t)을 파라미터로 연결
+    const customViewerUrl = `${baseUrl}viewer.html?p=${res.fileId}&v=${videoId}&t=${timeStamp}`;
+    displayResultWithQR(customViewerUrl);
+  } else {
+    alert("구글 드라이브 일시적 응답 지연입니다. 1~2초 후 [QR 다운]을 다시 눌러주세요.");
+  }
+}
 
   if (btn) { 
     btn.disabled = false; 
