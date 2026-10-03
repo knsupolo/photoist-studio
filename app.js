@@ -1,16 +1,5 @@
 /**
  * 포토이스트 (Photoist) Studio Pro v17.4 Pro [1편 / 전반부]
- * 
- * [v17.4 Pro 개편 사항]
- * 1. 시스템 버전 상수: v17.4 Pro 공식 반영 및 구글 웹앱 배포 URL 연동
- * 2. PIXX 연동 듀얼 비디오 버퍼링:
- *    - 6컷 촬영 전 과정을 끊김 없이 녹화하는 4x 타임랩스 버퍼
- *    - 모션컷 및 부메랑 반복 루프 생성을 위한 컷별 클립 버퍼
- * 3. 모바일/아이패드 세로 촬영 뷰포트 고정(100dvh) 및 3단 플렉스 격리
- * 4. 2x2 세로모드 촬영 시작 시 화면 축소/찌그러짐 원천 차단
- * 5. 사진 선택(screenPick) 화면: 포토이스트 매트블랙(#111111) 통일 & 초기 빈 슬롯(Empty Slots) UX
- * 6. 가로 촬영 모드(1x4, 1x5, 1x6) 실제 출력물 1:1 종횡비 프리뷰 동기화
- * 7. 회원가입 동일인 중복 가입 방지 & 계정 복구 센터(아이디 확인 / 비밀번호 직접 재설정)
  */
 
 const GOOGLE_DB_URL = "https://script.google.com/macros/s/AKfycbw1fjoUYoKQOHNNatPY_8q8X-1ogUV7iaFsIMpYioStlVX1SZK9hYiY32P-bGv7GUVoBw/exec";
@@ -116,17 +105,16 @@ let appState = {
   countdownTimer: null,
   isShootingPaused: false,
   orientationWarningDismissed: false,
-  selectedFormat: 'strip', // 'strip' (가로모드 촬영) | 'grid' (세로모드 촬영)
+  selectedFormat: 'strip',
   viewfinderRatio: 'full',
   currentShotIndex: 0,
   
-  cutMode: 4, // 4 | 5 | 6
+  cutMode: 4,
   shotImages: [],
   selectedImages: [],
   selectedIndices: [null, null, null, null],
   activeSlotIndex: 0,
   
-  // 🌟 PIXX 뷰어 연동용 듀얼 비디오 버퍼
   shotVideoBlobs: [],
   currentMediaRecorder: null,
   currentShotVideoChunks: [],
@@ -136,12 +124,11 @@ let appState = {
 
   frameColor: '#000000',
   frameThickness: 60,
-  layout: 'strip', // 'strip' | 'twin'
+  layout: 'strip',
   
-  // 시그니처 1:1 각인 글꼴
+  slotEngraveTexts: ["keep your memory", "photoist", "keep your memory", "photoist", "keep your memory", "photoist"],
   engraveFontFamily: 'Playfair Display',
 
-  // 좌하단 날짜 & 우하단 QR 자동 인쇄 토글
   showDate: true,
   showQrSticker: true,
   qrCachedDataUrl: null,
@@ -158,7 +145,7 @@ let appState = {
     date: getFormattedTodayDate()
   },
 
-  stickers: [], // 감성 문구 스티커 전용
+  stickers: [],
   selectedStickerIdx: -1,
   dragTarget: null,
   dragStartPos: { x: 0, y: 0 },
@@ -187,7 +174,7 @@ let hourlyChartInstance = null;
 let deviceChartInstance = null;
 
 // ========================================================
-// 1. 오디오 & 실감형 햅틱 피드백 엔진
+// 1. 오디오 & 햅틱 피드백 엔진
 // ========================================================
 let audioCtx = null;
 function initAudio() {
@@ -316,7 +303,7 @@ async function sendVisitTelemetry() {
 }
 
 // ========================================================
-// 3. 회원 인증 (동일인 중복 가입 차단 & 계정 복구 분리)
+// 3. 회원 인증 & 계정 복구
 // ========================================================
 function openAuthModal(tab = 'login') {
   const modal = document.getElementById('authModal');
@@ -426,7 +413,7 @@ async function processRegister() {
     });
     const data = await res.json();
     if (data.success) {
-      alert(`🎉 회원가입이 완료되었습니다!\n환영합니다, ${name}님. 로그인 후 포토이스트를 이용해 주세요.`);
+      alert(`🎉 회원가입이 완료되었습니다!\n환영합니다, ${name}님. 로그인 후 이용해 주세요.`);
       switchAuthTab('login');
       const loginIdInput = document.getElementById('loginUserId');
       if (loginIdInput) loginIdInput.value = id;
@@ -434,7 +421,7 @@ async function processRegister() {
       alert("가입 실패: " + data.message);
     }
   } catch (err) {
-    alert("회원가입 통신 중 오류가 발생했습니다: " + err.message);
+    alert("회원가입 통신 오류: " + err.message);
   }
 }
 
@@ -458,7 +445,7 @@ async function processLogin() {
     };
     applyUserLoginSuccess(adminUser, 'master-admin-token-' + Date.now());
     closeAuthModal();
-    alert("👑 최고 관리자(knsupolo) 계정으로 로그인되었습니다!\n관리자 센터 및 모든 기능이 활성화되었습니다.");
+    alert("👑 최고 관리자(knsupolo) 계정으로 로그인되었습니다!");
     openAdminDashboard();
     return;
   }
@@ -473,13 +460,13 @@ async function processLogin() {
     if (data.success) {
       applyUserLoginSuccess(data.user, data.sessionToken);
       closeAuthModal();
-      alert(`환영합니다, ${data.user.name || data.user.userId}님! 포토이스트 멤버십이 활성화되었습니다. 💖`);
+      alert(`환영합니다, ${data.user.name || data.user.userId}님! 💖`);
       loadUserSavedTheme();
     } else {
       alert(data.message || "아이디 또는 비밀번호가 일치하지 않습니다.");
     }
   } catch (err) {
-    alert("로그인 통신 중 오류가 발생했습니다.");
+    alert("로그인 통신 오류가 발생했습니다.");
   }
 }
 
@@ -573,7 +560,7 @@ async function processFindId() {
       if (loginIdInput) loginIdInput.value = data.userId;
     }
   } catch (e) {
-    alert("아이디 찾기 통신 중 오류가 발생했습니다.");
+    alert("아이디 찾기 통신 오류가 발생했습니다.");
   }
 }
 
@@ -594,7 +581,7 @@ async function processResetPasswordDirect() {
     return;
   }
   if (newPw !== newPwConfirm) {
-    alert("새 비밀번호와 비밀번호 확인 입력값이 일치하지 않습니다.");
+    alert("새 비밀번호와 확인 입력값이 일치하지 않습니다.");
     return;
   }
 
@@ -619,7 +606,7 @@ async function processResetPasswordDirect() {
       if (loginIdInput) loginIdInput.value = userId;
     }
   } catch (e) {
-    alert("비밀번호 재설정 통신 중 오류가 발생했습니다.");
+    alert("비밀번호 재설정 통신 오류가 발생했습니다.");
   }
 }
 
@@ -699,7 +686,7 @@ async function loadUserSavedTheme() {
 }
 
 // ========================================================
-// 5. 초기화면 멀티 공유 센터
+// 5. 공유 센터
 // ========================================================
 function openMainShareModal() {
   const modal = document.getElementById('mainShareModal');
@@ -754,7 +741,7 @@ async function triggerNativeShareAction() {
 function copyWebAppShareUrl() {
   const currentAppUrl = window.location.href.split('?')[0];
   navigator.clipboard.writeText(currentAppUrl).then(() => {
-    alert("스튜디오 접속 링크가 클립보드에 복사되었습니다! 📋\n카카오톡이나 메시지 창에 붙여넣어 공유하세요.");
+    alert("스튜디오 접속 링크가 복사되었습니다! 📋");
     closeMainShareModal();
   }).catch(() => {
     prompt("아래 웹 주소를 복사하여 공유하세요:", currentAppUrl);
@@ -762,7 +749,7 @@ function copyWebAppShareUrl() {
 }
 
 // ========================================================
-// 6. 마이 갤러리 아카이브 제어 (무제한 찜 보관함)
+// 6. 마이 갤러리 (무제한 찜 보관함)
 // ========================================================
 async function openMyGalleryModal() {
   const modal = document.getElementById('myGalleryModal');
@@ -949,7 +936,7 @@ function checkDeviceOrientation() {
     if (isPortraitDevice) {
       overlay.classList.remove('hidden');
       if (title) title.textContent = "카메라를 가로로 돌려주세요!";
-      if (desc) desc.textContent = "세로 스트립형 규격은 가로 파지 전용입니다. 기기를 가로로 회전하시면 카운트다운이 재개됩니다.";
+      if (desc) desc.textContent = "세로 스트립형 규격은 가로 파지 전용입니다. 기기를 회전하시면 카운트다운이 재개됩니다.";
       if (icon) icon.className = "w-8 h-8 text-theme rotate-90";
       pauseCountdown();
     } else {
@@ -960,7 +947,7 @@ function checkDeviceOrientation() {
     if (!isPortraitDevice) {
       overlay.classList.remove('hidden');
       if (title) title.textContent = "카메라를 세로로 돌려주세요!";
-      if (desc) desc.textContent = "2×2 엽서형 규격은 세로 파지 전용입니다. 기기를 세로로 회전하시면 카운트다운이 재개됩니다.";
+      if (desc) desc.textContent = "2×2 엽서형 규격은 세로 파지 전용입니다. 기기를 회전하시면 카운트다운이 재개됩니다.";
       if (icon) icon.className = "w-8 h-8 text-theme";
       pauseCountdown();
     } else {
@@ -1025,7 +1012,7 @@ async function startCameraStream(preserveState = false) {
   }
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    alert("카메라 권한이 없거나 HTTPS 보안 연결이 아닙니다. 앨범 선택 모드로 이동합니다.");
+    alert("카메라 권한이 없거나 HTTPS 연결이 아닙니다. 앨범 선택 모드로 이동합니다.");
     triggerGalleryUpload();
     return;
   }
@@ -1099,7 +1086,7 @@ function setViewfinderRatio(ratio, btn) {
 }
 
 // ========================================================
-// 9. 6컷 연속 촬영 (전 과정 백그라운드 녹화 파이프라인 탑재)
+// 9. 6컷 연속 촬영 (4x 타임랩스 백그라운드 녹화 탑재)
 // ========================================================
 function startActualCountdownSession() {
   playBeep(900);
@@ -1125,7 +1112,6 @@ function startActualCountdownSession() {
     } 
   }
 
-  // 🌟 PIXX 연동 전 과정 4x 타임랩스 백그라운드 녹화 시작
   startFullSessionTimelapseRecording();
   runContinuousLiveShoot(0);
 }
@@ -1311,7 +1297,7 @@ function stopCameraAndAudio() {
 }
 
 // ========================================================
-// 10. 사진 선택 (스트립 1:1 프리뷰 & 초기 빈 슬롯)
+// 10. 사진 선택 (포토이스트 매트블랙 & 초기 빈 슬롯)
 // ========================================================
 function initEmptySlots(cuts) {
   appState.cutMode = cuts;
@@ -1634,7 +1620,8 @@ function refreshPickUI() {
   if (btn) btn.textContent = chosenCount === cuts ? "스튜디오 꾸미기 ➔" : `스튜디오 꾸미기 (${chosenCount}/${cuts})`;
 }
 
-ffunction confirmSelectedFour() {
+// 🌟 사진 선택 완료 후 에디터 진입 (안전한 선행 화면 전환 적용)
+function confirmSelectedFour() {
   const cuts = appState.cutMode || 4;
   for (let i = 0; i < cuts; i++) {
     if (appState.selectedIndices[i] === null || !appState.shotImages[appState.selectedIndices[i]]) {
@@ -1647,26 +1634,27 @@ ffunction confirmSelectedFour() {
 
   appState.selectedImages = appState.selectedIndices.map(idx => appState.shotImages[idx]);
 
-  // 1. 화면 전환을 최우선 실행
+  // 1. 화면 전환을 최우선 실행하여 DOM 구조를 노출
   showScreen('screenEdit');
 
-  // 2. 에디터 초기화 및 슬롯 각인 인풋 생성
+  // 2. 에디터 초기화
   if (!appState.stickers || appState.stickers.length === 0) {
     resetEditorToDefault();
   }
-  
+
+  // 3. 슬롯별 각인 입력창 렌더링
   if (typeof renderSlotEngraveInputs === 'function') {
     renderSlotEngraveInputs();
   }
 
-  // 3. 레이아웃 선택 바 제어
+  // 4. Twin 레이아웃 선택 바 노출 제어 (세로 스트립형만 노출)
   const layoutRow = document.getElementById('layoutSelectionRow');
   if (layoutRow) {
     if (appState.selectedFormat === 'strip') layoutRow.classList.remove('hidden');
     else layoutRow.classList.add('hidden');
   }
 
-  // 4. 캔버스 프레임 최종 렌더링
+  // 5. 프레임 렌더링
   requestAnimationFrame(() => {
     renderStrip();
   });
@@ -1686,7 +1674,6 @@ function resetEditorToDefault() {
   appState.typography.fontSize = 54;
   appState.engraveFontFamily = 'Playfair Display';
 
-  // 기본값 설정: 좌하단 날짜 ON, 우하단 QR ON
   appState.showDate = true;
   appState.showQrSticker = true;
 
@@ -1768,8 +1755,6 @@ function cancelGalleryCollect() {
     m.style.setProperty('display', 'none', 'important');
   }
 }
-
-// [1편 끝 - 2편(후반부) 코드를 바로 아래에 이어서 붙여넣어 주세요]
 // ========================================================
 // 11. 프레임 테두리 & 1:1 측면/좌측 각인 시스템
 // ========================================================
@@ -2191,7 +2176,7 @@ function drawLeftFilmSymbols(ctx, leftX, y1, y2, y3, y4, color) {
   ctx.font = "bold 24px monospace";
   ctx.fillText("ㅁ>>", leftX, y1);
 
-  // 2번 사진 중간: <<  >>
+  // 2번 사진 중간: << >>
   ctx.font = "bold 22px monospace";
   ctx.fillText("<< >>", leftX, y2);
 
@@ -2199,7 +2184,7 @@ function drawLeftFilmSymbols(ctx, leftX, y1, y2, y3, y4, color) {
   ctx.font = "900 24px monospace";
   ctx.fillText("||", leftX, y3);
 
-  // 4번 사진 바닥: FRAME >>  8. cut (세로 회전)
+  // 4번 사진 바닥: FRAME >> 8. cut (세로 회전)
   ctx.save();
   ctx.translate(leftX, y4);
   ctx.rotate(Math.PI / 2);
@@ -2870,7 +2855,7 @@ function updateFavoriteButtonUI() {
 }
 
 // ========================================================
-// 18. 🌟 PIXX 연동 4대 미디어 엔진 (타임랩스, 모션컷, 루프, 사진)
+// 18. PIXX 연동 4대 미디어 엔진 (타임랩스, 모션컷, 루프, 사진)
 // ========================================================
 
 // ① 프레임 합성 모션컷 생성 (15Mbps)
@@ -3114,7 +3099,7 @@ async function generateLoopBoomerangBlob() {
     const mimeType = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/mp4')) ? 'video/mp4' : 'video/webm';
     const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 12000000 });
     const chunks = [];
-    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
 
     return new Promise(async (resolve) => {
       recorder.onstop = () => {
@@ -3122,7 +3107,6 @@ async function generateLoopBoomerangBlob() {
       };
       recorder.start();
 
-      // 정방향 재생
       v.currentTime = 0;
       await v.play().catch(()=>{});
       const drawForward = () => {
@@ -3130,7 +3114,6 @@ async function generateLoopBoomerangBlob() {
           bCtx.drawImage(v, 0, 0, bCanvas.width, bCanvas.height);
           requestAnimationFrame(drawForward);
         } else {
-          // 역방향 재생 시뮬레이션
           let revTime = v.duration || 2.5;
           const drawBackward = () => {
             revTime -= 0.05;
@@ -3180,7 +3163,7 @@ function drawVideoSlot(ctx, v, x, y, w, h) {
 }
 
 // ========================================================
-// 19. 🌟 PIXX 스타일 디지털 뷰어 QR 발급 및 세션 번들 업로드
+// 19. PIXX 스타일 디지털 뷰어 QR 발급 및 세션 번들 업로드
 // ========================================================
 async function generateImageQRCode() {
   const btn = document.getElementById('btnSaveQR'); 
@@ -3215,7 +3198,7 @@ async function generateImageQRCode() {
     const photoRes = await uploadSessionMedia(sessionId, 'photo', extractPureBase64(base64Img), 'image/jpeg');
     const photoFileId = photoRes && photoRes.fileId ? photoRes.fileId : '';
 
-    // 2차: 타임랩스 녹화본 백그라운드 세션 업로드 (백그라운드 비동기)
+    // 2차: 타임랩스 녹화본 백그라운드 세션 업로드
     if (appState.fullSessionVideoBlob) {
       blobToBase64(appState.fullSessionVideoBlob).then(b64 => {
         uploadSessionMedia(sessionId, 'timelapse', extractPureBase64(b64), 'video/webm').catch(()=>{});
@@ -3809,7 +3792,7 @@ function getStoredNotices() {
       id: 'v17_4_init', 
       date: getFormattedTodayDate(), 
       version: APP_VERSION, 
-      content: 'v17.4 Pro: PIXX 스타일 디지털 뷰어 연동, 4x 타임랩스, 1:1 시그니처 각인 & QR 인쇄 업데이트 완료!' 
+      content: 'v17.4 Pro: PIXX 스타일 디지털 뷰어, 4x 타임랩스, 시그니처 각인 & QR 인쇄 업데이트 완료!' 
     }];
   }
   return list;
@@ -4116,7 +4099,6 @@ function setTimerSec(sec, btn) {
   if (btn) btn.className = "timer-chip bg-theme text-white font-bold px-1.5 py-0.5 rounded text-[10px] shadow-xs"; 
 }
 
-// 🌟 [심플화] 감성 문구 스티커 칩 & 24색 팔레트 초기화
 function initDynamicUI() {
   const texts = [
     'PHOTOIST', 'BEST MOMENT', 'KEEP YOUR MEMORY', 'YOUTH', 'HAPPY DAY', 
@@ -4141,7 +4123,7 @@ function initDynamicUI() {
 }
 
 // ========================================================
-// 22. 🌟 window 전역 인터랙션 함수 바인딩 (에러 유발 코드 완전 정돈)
+// 22. 🌟 window 전역 인터랙션 함수 바인딩 (에러 차단 클린 바인딩)
 // ========================================================
 window.startSession = startSession;
 window.startActualCountdownSession = startActualCountdownSession;
@@ -4246,7 +4228,7 @@ window.restorePreviousSession = restorePreviousSession;
 window.resetApp = resetApp;
 
 // ========================================================
-// 23. 앱 초기 구동 엔트리포인트 (동적 뷰포트 & 리사이즈)
+// 23. 앱 초기 구동 엔트리포인트 (동적 뷰포트 & 이벤트 바인딩)
 // ========================================================
 window.addEventListener('DOMContentLoaded', () => {
   ['screenLiveShoot', 'screenPick', 'screenEdit', 'screenBoard', 'screenResult', 'videoResultModal', 'galleryCollectModal', 'adminDashboardModal', 'customerBotModal', 'authModal', 'myGalleryModal', 'mainShareModal', 'myProfileModal'].forEach(id => {
