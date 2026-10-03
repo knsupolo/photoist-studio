@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="pragma" content="no-cache" />
+  <meta http-equiv="expires" content="0" />
+  <meta property="og:title" content="Photoist Digital Service" />
+  <meta property="og:description" content="촬영 후 24시간 동안 다운로드 가능합니다." />
+  <title>Photoist - Digital Service</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    html, body {
+      min-height: 100%;
+      font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      color: #1c1917;
+      background: radial-gradient(circle at top, rgba(255, 255, 255, 0.85), transparent 40%),
+                  linear-gradient(180deg, #f5efe6 0%, #dfd3c3 100%);
+    }
+    body {
+      padding: 16px;
+    }
+    .page {
+      width: min(100%, 540px);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-bottom: 32px;
+    }
+    .hero {
+      margin-top: 4px;
+      padding: 22px 20px 24px;
+      border-radius: 28px;
+      background: linear-gradient(180deg, #262626 0%, #111111 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      position: relative;
+    }
+    .brand-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }
+    .hero-eyebrow {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.22em;
+      color: rgba(255, 255, 255, 0.55);
+      margin-bottom: 12px;
+    }
+    .hero-time {
+      font-size: 24px;
+      line-height: 1.2;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+    .hero-timezone {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 8px;
+    }
+    .notice {
+      font-size: 13px;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.85);
+    }
+    .notice strong {
+      color: #f43f5e;
+      font-weight: 800;
+    }
+    .card {
+      padding: 16px;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+      backdrop-filter: blur(12px);
+    }
+    .viewer {
+      position: relative;
+      background: #000000;
+      border-radius: 20px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+    .viewer + .viewer {
+      margin-top: 12px;
+    }
+    .viewer-tag {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 8px;
+      z-index: 5;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    #timelapsePlayer,
+    #motionCutPlayer,
+    #photoView {
+      width: 100%;
+      height: auto;
+      max-height: 65vh;
+      object-fit: contain;
+      display: block;
+    }
+    #photoView {
+      display: none;
+    }
+    .action-stack {
+      display: grid;
+      grid-template-columns: 1fr;
+      margin-top: 12px;
+    }
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .action-button {
+      width: 100%;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 18px;
+      min-height: 82px;
+      padding: 14px 12px;
+      font-family: inherit;
+      text-align: center;
+      background: linear-gradient(180deg, #ffffff 0%, #f9f9f9 100%);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .action-button:active {
+      transform: scale(0.98);
+    }
+    .action-button .button-title {
+      display: block;
+      font-size: 16px;
+      font-weight: 800;
+      color: #1e293b;
+      letter-spacing: -0.01em;
+    }
+    .action-button .button-sub {
+      display: block;
+      margin-top: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+    }
+    .action-button.primary {
+      background: linear-gradient(180deg, #f43f5e 0%, #e11d48 100%);
+      border-color: #be123c;
+      box-shadow: 0 10px 24px rgba(244, 63, 94, 0.25);
+    }
+    .action-button.primary .button-title {
+      color: #ffffff;
+    }
+    .action-button.primary .button-sub {
+      color: rgba(255, 255, 255, 0.85);
+    }
+    .action-button.highlight {
+      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+      border-color: #0f172a;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
+    }
+    .action-button.highlight .button-title {
+      color: #ffffff;
+    }
+    .action-button.highlight .button-sub {
+      color: rgba(255, 255, 255, 0.75);
+    }
+    .thanks {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.6;
+      color: #78716c;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body onload="initViewer();">
+  <main class="page">
+    <section class="hero">
+      <h1 class="brand-title">photoist</h1>
+      <p class="hero-eyebrow">DIGITAL SERVICE</p>
+      <div class="hero-time" id="shotTimeText">-</div>
+      <div class="hero-timezone">한국시간 기준 · KST</div>
+      <p class="notice">촬영 후 <strong>24시간</strong> 동안 다운로드하실 수 있습니다.</p>
+    </section>
+
+    <section class="card">
+      <!-- 상단 타임랩스 비디오 뷰어 -->
+      <div class="viewer">
+        <span class="viewer-tag">⚡ 4x 타임랩스 비디오</span>
+        <video id="timelapsePlayer" preload="auto" loop autoplay muted playsinline>
+          브라우저가 동영상을 지원하지 않습니다.
+        </video>
+      </div>
+
+      <!-- 하단 사진 / 모션컷 토글 뷰어 -->
+      <div class="viewer">
+        <span class="viewer-tag" id="currentViewTag">🎬 움직이는 모션컷</span>
+        <img id="photoView" src="" alt="Photoist Still" />
+        <video id="motionCutPlayer" preload="auto" loop autoplay muted playsinline>
+          브라우저가 동영상을 지원하지 않습니다.
+        </video>
+      </div>
+
+      <!-- 사진 보기 ↔ 영상 보기 토글 스택 -->
+      <div class="action-stack">
+        <button class="action-button primary" onclick="togglePhotoVideoView()">
+          <span class="button-title" id="toggleMainTitle">사진 보기</span>
+          <span class="button-sub" id="toggleSubTitle">정지된 원본 사진으로 확인</span>
+        </button>
+      </div>
+
+      <!-- 1열: 타임랩스 / 반복 루프 다운로드 -->
+      <div class="download-grid">
+        <button class="action-button highlight" onclick="downloadMedia('timelapse')">
+          <span class="button-title">타임 랩스</span>
+          <span class="button-sub">4x 촬영 영상 저장 (MP4)</span>
+        </button>
+        <button class="action-button highlight" onclick="downloadMedia('loop')">
+          <span class="button-title">반복 영상</span>
+          <span class="button-sub">부메랑 핑퐁 루프 (MP4)</span>
+        </button>
+      </div>
+
+      <!-- 2열: 모션컷 / 촬영 사진 원본 다운로드 -->
+      <div class="download-grid">
+        <button class="action-button" onclick="downloadMedia('motion')">
+          <span class="button-title">모션 컷</span>
+          <span class="button-sub">프레임 합성 영상 (MP4)</span>
+        </button>
+        <button class="action-button" onclick="downloadMedia('photo')">
+          <span class="button-title">촬영 사진</span>
+          <span class="button-sub">최종 인화본 사진 (JPG)</span>
+        </button>
+      </div>
+    </section>
+
+    <footer class="thanks">
+      포토이스트 (Photoist) Studio Pro를 이용해 주셔서 감사합니다.
+    </footer>
+  </main>
+
+  <script>
+    // URL 파라미터 파싱
+    var urlParams = new URLSearchParams(window.location.search);
+    var sessionId = urlParams.get('id') || '';
+    var directPhotoId = urlParams.get('photo') || '';
+    var directTimelapseId = urlParams.get('timelapse') || '';
+    var directMotionId = urlParams.get('motion') || '';
+    var directLoopId = urlParams.get('loop') || '';
+
+    var isPhotoViewActive = false;
+
+    // 미디어 파일 소스 매핑
+    var mediaUrls = {
+      photo: directPhotoId ? 'https://lh3.googleusercontent.com/d/' + directPhotoId : '',
+      timelapse: directTimelapseId ? 'https://drive.google.com/uc?export=download&id=' + directTimelapseId : '',
+      motion: directMotionId ? 'https://drive.google.com/uc?export=download&id=' + directMotionId : '',
+      loop: directLoopId ? 'https://drive.google.com/uc?export=download&id=' + directLoopId : ''
+    };
+
+    function initViewer() {
+      // 촬영 일시 포맷팅
+      var now = new Date();
+      var year = now.getFullYear();
+      var month = String(now.getMonth() + 1).padStart(2, '0');
+      var date = String(now.getDate()).padStart(2, '0');
+      var hours = String(now.getHours()).padStart(2, '0');
+      var mins = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('shotTimeText').textContent = year + '. ' + month + '. ' + date + ' ' + hours + ':' + mins;
+
+      // 엘리먼트 소스 연결
+      var timelapseEl = document.getElementById('timelapsePlayer');
+      var motionEl = document.getElementById('motionCutPlayer');
+      var photoEl = document.getElementById('photoView');
+
+      if (mediaUrls.timelapse) timelapseEl.src = mediaUrls.timelapse;
+      if (mediaUrls.motion) motionEl.src = mediaUrls.motion;
+      if (mediaUrls.photo) photoEl.src = mediaUrls.photo;
+
+      timelapseEl.play().catch(function(){});
+      motionEl.play().catch(function(){});
+    }
+
+    function togglePhotoVideoView() {
+      var photoEl = document.getElementById('photoView');
+      var motionEl = document.getElementById('motionCutPlayer');
+      var tagEl = document.getElementById('currentViewTag');
+      var titleEl = document.getElementById('toggleMainTitle');
+      var subEl = document.getElementById('toggleSubTitle');
+
+      if (isPhotoViewActive) {
+        photoEl.style.display = 'none';
+        motionEl.style.display = 'block';
+        motionEl.play().catch(function(){});
+        tagEl.textContent = '🎬 움직이는 모션컷';
+        titleEl.textContent = '사진 보기';
+        subEl.textContent = '정지된 원본 사진으로 확인';
+        isPhotoViewActive = false;
+      } else {
+        motionEl.pause();
+        motionEl.style.display = 'none';
+        photoEl.style.display = 'block';
+        tagEl.textContent = '🖼️ 최종 인화 사진';
+        titleEl.textContent = '영상 보기';
+        subEl.textContent = '움직이는 모션컷으로 확인';
+        isPhotoViewActive = true;
+      }
+    }
+
+    async function downloadMedia(type) {
+      var targetUrl = mediaUrls[type];
+      if (!targetUrl) {
+        alert('해당 미디어 파일 링크가 아직 동기화 중입니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+
+      var fileNames = {
+        timelapse: 'Photoist_Timelapse_' + Date.now() + '.mp4',
+        loop: 'Photoist_Loop_' + Date.now() + '.mp4',
+        motion: 'Photoist_MotionCut_' + Date.now() + '.mp4',
+        photo: 'Photoist_Photo_' + Date.now() + '.jpg'
+      };
+
+      try {
+        var response = await fetch(targetUrl, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Download request failed');
+        var blob = await response.blob();
+        var blobUrl = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = fileNames[type];
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 1500);
+      } catch (err) {
+        window.open(targetUrl, '_blank');
+      }
+    }
+  </script>
+</body>
+</html>
