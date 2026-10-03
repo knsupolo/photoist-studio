@@ -1634,7 +1634,7 @@ function refreshPickUI() {
   if (btn) btn.textContent = chosenCount === cuts ? "스튜디오 꾸미기 ➔" : `스튜디오 꾸미기 (${chosenCount}/${cuts})`;
 }
 
-function confirmSelectedFour() {
+ffunction confirmSelectedFour() {
   const cuts = appState.cutMode || 4;
   for (let i = 0; i < cuts; i++) {
     if (appState.selectedIndices[i] === null || !appState.shotImages[appState.selectedIndices[i]]) {
@@ -1647,20 +1647,29 @@ function confirmSelectedFour() {
 
   appState.selectedImages = appState.selectedIndices.map(idx => appState.shotImages[idx]);
 
+  // 1. 화면 전환을 최우선 실행
+  showScreen('screenEdit');
+
+  // 2. 에디터 초기화 및 슬롯 각인 인풋 생성
   if (!appState.stickers || appState.stickers.length === 0) {
     resetEditorToDefault();
   }
-  showScreen('screenEdit');
+  
+  if (typeof renderSlotEngraveInputs === 'function') {
+    renderSlotEngraveInputs();
+  }
 
-  requestAnimationFrame(() => {
-    renderStrip();
-  });
-
+  // 3. 레이아웃 선택 바 제어
   const layoutRow = document.getElementById('layoutSelectionRow');
   if (layoutRow) {
     if (appState.selectedFormat === 'strip') layoutRow.classList.remove('hidden');
     else layoutRow.classList.add('hidden');
   }
+
+  // 4. 캔버스 프레임 최종 렌더링
+  requestAnimationFrame(() => {
+    renderStrip();
+  });
 
   saveSessionStateToStorage();
 }
@@ -4132,7 +4141,7 @@ function initDynamicUI() {
 }
 
 // ========================================================
-// 22. 🌟 window 전역 인터랙션 함수 바인딩
+// 22. 🌟 window 전역 인터랙션 함수 바인딩 (에러 유발 코드 완전 정돈)
 // ========================================================
 window.startSession = startSession;
 window.startActualCountdownSession = startActualCountdownSession;
